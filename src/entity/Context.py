@@ -1,0 +1,88 @@
+import json
+import threading
+from typing import Optional
+
+class Context:
+    _instance = None
+    _initialized = False
+    _order_num = 0
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        # 防止重复初始化
+        if not Context._initialized:
+            Context._initialized = True
+            # 用户自定义类
+            self.data_type = None
+            self.start_date = None
+            self.end_date = None
+            self.strategy_name = None
+            self.cash = None
+            self.stockCash = None
+            self.futureCash = None
+            self.optionCash = None
+            self.seed = 42
+            self.run_stock = False
+            self.run_future = False
+            self.run_option = False
+
+            # 框架维护的属性
+            self.current_date = None
+            self.current_timestamp = None
+            self.oriCash = self.cash
+            self.oriStockCash = self.stockCash
+            self.oriFutureCash = self.futureCash
+            self.oriOptionCash = self.optionCash
+            self.profit = 0.0   # 平仓盈亏
+            self.realTimeProfit = 0.0   # 实时盈亏
+            self.stockProfit = 0.0
+            self.stockRealTimeProfit = 0.0
+            self.futureProfit = 0.0
+            self.futureRealTimeProfit = 0.0
+            self.optionProfit = 0.0
+            self.optionRealTimeProfit = 0.0
+            self.stockCounter = {}  # 股票柜台队列
+            self.futureCounter = {} # 期货柜台队列
+            self.optionCounter = {} # 期权柜台队列
+            self.stockLongPosition = {}     # 股票多仓明细
+            self.stockShortPosition = {}    # 股票空仓明细
+            self.futureLongPosition = {}    # 期货多仓明细
+            self.futureShortPosition = {}   # 期货空仓明细
+            self.stockLongSummary = {}     # 股票多仓视图
+            self.stockShortSummary = {}    # 股票空仓视图
+            self.futureLongSummary = {}    # 期货多仓视图
+            self.futureShortSummary = {}   # 期货空仓视图
+            # TODO: 记录类成员变量维护
+
+    @classmethod
+    def get_instance(cls) -> 'Context':
+        """获取单例实例"""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_nextOrderNum(self) -> int:
+        """获取全局唯一的自增订单编号"""
+        with self._lock:
+            self._order_num += 1
+            return self._order_num
+
+    def initialize_from_config(self, config: dict):
+        """从配置数据初始化"""
+        self.data_type = config["data_type"]
+        self.start_date = config["start_date"]
+        self.end_date = config["end_date"]
+        self.strategy_name = config["strategy_name"]
+        self.cash = config["cash"]
+        self.stockCash = config["stockCash"]
+        self.futureCash = config["futureCash"]
+        self.optionCash = config["optionCash"]
+        self.seed = config["seed"]
+        self.run_stock = config["run_stock"]
+        self.run_future = config["run_future"]
+        self.run_option = config["run_option"]
