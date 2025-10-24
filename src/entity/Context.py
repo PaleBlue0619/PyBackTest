@@ -33,6 +33,7 @@ class Context:
 
             # 框架维护的属性
             self.current_date = None
+            self.current_minute = None
             self.current_timestamp = None
             self.oriCash = self.cash
             self.oriStockCash = self.stockCash
@@ -46,8 +47,8 @@ class Context:
             self.futureRealTimeProfit = 0.0
             self.optionProfit = 0.0
             self.optionRealTimeProfit = 0.0
-            self.stockCounter = {}  # 股票柜台队列
-            self.futureCounter = {} # 期货柜台队列
+            self.stockCounter: Dict[int, StockOrder] = {}  # 股票柜台队列
+            self.futureCounter: Dict[int, FutureOrder] = {} # 期货柜台队列
             self.optionCounter = {} # 期权柜台队列
             self.stockLongPosition = {}     # 股票多仓明细
             self.stockShortPosition = {}    # 股票空仓明细
