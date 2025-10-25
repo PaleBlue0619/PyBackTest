@@ -4,7 +4,7 @@ class Position:
     def __init__(self, symbol: str, price: float, vol: int,
                  min_timestamp: pd.Timestamp, max_timestamp: pd.Timestamp):
         self.symbol = symbol
-        self.price = price
+        self.ori_price = price
         self.vol = vol
         self.min_timestamp = min_timestamp
         self.max_timestamp = max_timestamp
@@ -17,6 +17,7 @@ class StockPosition(Position):
         super().__init__(symbol, price, vol, min_timestamp, max_timestamp)
         self.direction = direction
         self.sign = 1 if direction == 'long' else -1
+        self.ori_price = price
         self.static_profit = static_profit
         self.static_loss = static_loss
         self.dynamic_profit = dynamic_profit
@@ -120,15 +121,18 @@ class StockPosition(Position):
                 self.dynamic_monitor = 1
 
 class FuturePosition(Position):
-    def __init__(self, direction: str, symbol: str, price: float, vol: int, margin_rate: float,
+    def __init__(self, direction: str, symbol: str, price: float, vol: int,
+                 pre_settle: float, margin_rate: float,
                  min_timestamp: pd.Timestamp, max_timestamp: pd.Timestamp,
                  static_profit: float, static_loss: float,
                  dynamic_profit: float, dynamic_loss: float):
         super().__init__(symbol, price, vol, min_timestamp, max_timestamp)
         self.direction = direction
         self.sign = 1 if direction == 'long' else -1
+        self.ori_price = price
+        self.pre_settle = pre_settle
         self.margin_rate = margin_rate
-        self.margin = margin_rate * vol * price
+        self.margin = margin_rate * vol * price  # 该仓位的保证金金额
         self.static_profit = static_profit
         self.static_loss = static_loss
         self.dynamic_profit = dynamic_profit
@@ -178,12 +182,21 @@ class FuturePosition(Position):
         self.time_monitor = 0
         self.static_monitor = 0
         self.dynamic_monitor = 0
+        # 更新hold_days
+        self.hold_days += 1
+
         # 更新当前仓位的利润
         realTimeProfit = (self.pre_price - settle) * self.vol * self.sign
         self.profit += realTimeProfit
         self.margin += realTimeProfit
         self.pre_price = settle # 更新当前仓位的pre_price为price
         return realTimeProfit
+
+    def afterDaySettle(self, settle: float):
+        """更新结算价"""
+        settleProfit = (settle - self.pre_settle) * self.vol * self.sign
+        self.pre_settle = settle
+        return settleProfit
 
     def onBarMonitorTime(self, current_date: pd.Timestamp, current_timestamp: pd.Timestamp, end_date: pd.Timestamp):
         """

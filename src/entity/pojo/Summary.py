@@ -51,6 +51,11 @@ class StockSummary(Summary):
         self.profit += (price - self.ori_price) * vol * 1 # 累计盈亏
         self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign # 更新最新利润
 
+    # K线回调函数
+    def onBarUpdate(self, price: float):
+        self.realTimePrice = price
+        self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign
+
     # 盘后结算回调函数
     def afterDayUpdate(self, settle: float):
         self.realTimePrice = settle
@@ -96,6 +101,11 @@ class FutureSummary(Summary):
         self.total_vol -= vol
         self.profit += (price - self.ori_price) * vol * 1 # 累计盈亏
         self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign # 更新最新利润
+
+    # K线回调函数
+    def onBarUpdate(self, price: float):
+        self.realTimePrice = price
+        self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign
 
     # 盘后结算回调函数
     def afterDayUpdate(self, settle: float):

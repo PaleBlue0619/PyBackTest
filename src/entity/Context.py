@@ -1,6 +1,10 @@
 import json
 import threading
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+if TYPE_CHECKING:
+    from src.entity.pojo.Order import StockOrder, FutureOrder
+    from src.entity.pojo.Summary import StockSummary, FutureSummary
+    from src.entity.pojo.Position import stockPosition, FuturePosition
 
 class Context:
     _instance = None
@@ -45,19 +49,20 @@ class Context:
             self.stockRealTimeProfit = 0.0
             self.futureProfit = 0.0
             self.futureRealTimeProfit = 0.0
+            self.futureSettleProfit = 0.0
             self.optionProfit = 0.0
             self.optionRealTimeProfit = 0.0
             self.stockCounter: Dict[int, StockOrder] = {}  # 股票柜台队列
             self.futureCounter: Dict[int, FutureOrder] = {} # 期货柜台队列
             self.optionCounter = {} # 期权柜台队列
-            self.stockLongPosition = {}     # 股票多仓明细
-            self.stockShortPosition = {}    # 股票空仓明细
-            self.futureLongPosition = {}    # 期货多仓明细
-            self.futureShortPosition = {}   # 期货空仓明细
-            self.stockLongSummary = {}     # 股票多仓视图
-            self.stockShortSummary = {}    # 股票空仓视图
-            self.futureLongSummary = {}    # 期货多仓视图
-            self.futureShortSummary = {}   # 期货空仓视图
+            self.stockLongPosition: Dict[str, List[StockPosition]] = {}     # 股票多仓明细
+            self.stockShortPosition: Dict[str, List[StockPosition]] = {}    # 股票空仓明细
+            self.futureLongPosition: Dict[str, List[FuturePosition]] = {}    # 期货多仓明细
+            self.futureShortPosition: Dict[str, List[FuturePosition]] = {}   # 期货空仓明细
+            self.stockLongSummary: Dict[str, StockSummary] = {}     # 股票多仓视图
+            self.stockShortSummary: Dict[str, StockSummary] = {}    # 股票空仓视图
+            self.futureLongSummary: Dict[str, FutureSummary] = {}    # 期货多仓视图
+            self.futureShortSummary: Dict[str, FutureSummary] = {}   # 期货空仓视图
             # TODO: 记录类成员变量维护
 
     @classmethod

@@ -1,4 +1,5 @@
 import pandas as pd
+from typing import Optional, TYPE_CHECKING
 
 class DataDict:
     _instance = None
