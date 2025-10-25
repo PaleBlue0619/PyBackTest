@@ -1,7 +1,7 @@
 import pandas as pd
-from Context import Context
-from DataDict import DataDict
-from CounterBehavior import CounterBehavior
+from src.entity.Context import Context
+from src.entity.DataDict import DataDict
+from src.entity.CounterBehavior import CounterBehavior
 
 class Counter(CounterBehavior):
     def __init__(self):
@@ -18,7 +18,6 @@ class Counter(CounterBehavior):
         # 获取当前配置实例
         context = Context.get_instance()
         dataDict = DataDict.get_instance()
-        day = context.current_date
         minute = context.current_minute
         timestamp = context.current_timestamp
         stockCounter = context.stockCounter
@@ -96,7 +95,6 @@ class Counter(CounterBehavior):
         # 获取当前配置实例
         context = Context.get_instance()
         dataDict = DataDict.get_instance()
-        day = context.current_date
         minute = context.current_minute
         timestamp = context.current_timestamp
         futureCounter = context.futureCounter

@@ -1,7 +1,7 @@
 import pandas as pd
-from Context import Context
-import DataDict
-from TradeBehavior import TradeBehavior
+from src.entity.Context import Context
+from src.entity.DataDict import DataDict
+from src.entity.TradeBehavior import TradeBehavior
 from src.entity.pojo.Order import *
 from src.entity.pojo.Info import *
 from src.entity.pojo.Position import *

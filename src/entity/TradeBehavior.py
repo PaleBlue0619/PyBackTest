@@ -1,10 +1,10 @@
 import pandas as pd
-from pojo.Order import *
-from Context import Context
+from src.entity.pojo.Order import *
+from src.entity.Context import Context
 
 class TradeBehavior:
     @staticmethod
-    def orderOpenStock(direction: str, symbol: str, vol: int, price: double,
+    def orderOpenStock(direction: str, symbol: str, vol: int, price: float,
                        static_profit: float, static_loss: float,
                        dynamic_profit: float, dynamic_loss: float,
                        min_timestamp: float, max_timestamp: float,
