@@ -718,4 +718,3 @@ class CounterBehavior(TradeBehavior):
                             self.closeFuture(direction, symbol=symbol, vol=posVol, price=close_price,
                                              reason="动态最高价")
                             continue
-    
