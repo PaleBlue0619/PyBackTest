@@ -11,7 +11,7 @@ class fromJson:
     def getNameList(jsonPath) -> List[str]:
         """获取当前文件目录下有多少指定格式的文件，返回其文件名称"""
         return os.path.basename([i for i in glob.glob(rf"{jsonPath}\*.json")])
-        
+
     def loadBar(self, symbolCol: str, dateCol: str, timeCol: str, openCol: str, highCol: str, lowCol: str, closeCol: str, volCol: str) -> Dict:
         """批量K线数据导入"""
 

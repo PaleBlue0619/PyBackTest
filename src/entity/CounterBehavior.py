@@ -528,9 +528,9 @@ class CounterBehavior(TradeBehavior):
 
             # 基本信息
             end_date = info.end_date
-            high_price = bar.high
-            low_price = bar.low
-            close_price = bar.close
+            high_price = bar["high"]
+            low_price = bar["low"]
+            close_price = bar["close"]
             pos_list = totalPos[symbol]
             i: int = 0
             while i < len(pos_list):    # 过程中可能会平仓
@@ -640,9 +640,9 @@ class CounterBehavior(TradeBehavior):
 
             # 基本信息
             end_date = info.end_date
-            high_price = bar.high
-            low_price = bar.low
-            close_price = bar.close
+            high_price = bar["high"]
+            low_price = bar["low"]
+            close_price = bar["close"]
             pos_list = totalPos[symbol]
             i: int = 0
             while i < len(pos_list):    # 过程中可能会平仓
