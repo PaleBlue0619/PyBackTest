@@ -58,7 +58,6 @@ class StockPosition(Position):
         self.time_monitor = 0
         self.static_monitor = 0
         self.dynamic_monitor = 0
-        return realTimeProfit
 
     def onBarMonitorTime(self, current_date: pd.Timestamp, current_timestamp: pd.Timestamp, end_date: pd.Timestamp):
         """
@@ -68,8 +67,8 @@ class StockPosition(Position):
         :return:
         """
         if self.time_monitor == 0:
-            min_date = self.min_timestamp.date()
-            max_date = self.max_timestamp.date()
+            min_date = pd.Timestamp(self.min_timestamp.date())
+            max_date = pd.Timestamp(self.max_timestamp.date())
             if min_date < current_date: # T+1
                 self.time_monitor = -2
             elif end_date > current_date > min_date and current_date < max_date:
@@ -84,7 +83,7 @@ class StockPosition(Position):
     def onBarMonitorStatic(self, daily_max_price: float, daily_min_price: float):
         """上帝视角加速止盈止损判断"""
         if self.static_monitor == 0:
-            if not self.static_high and self.static_low:
+            if not self.static_high and not self.static_low:
                 self.static_monitor = -1
             elif not self.static_high and self.static_low > daily_min_price:
                 self.static_monitor = -1    # 一定成交不了
@@ -222,7 +221,7 @@ class FuturePosition(Position):
     def onBarMonitorStatic(self, daily_max_price: float, daily_min_price: float):
         """上帝视角加速止盈止损判断"""
         if self.static_monitor == 0:
-            if not self.static_high and self.static_low:
+            if not self.static_high and not self.static_low:
                 self.static_monitor = -1
             elif not self.static_high and self.static_low > daily_min_price:
                 self.static_monitor = -1    # 一定成交不了

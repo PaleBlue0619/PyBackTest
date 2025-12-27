@@ -7,7 +7,8 @@ class Counter(CounterBehavior):
     def __init__(self):
         super(Counter, self).__init__()
 
-    def processStockOrder(self, open_threshold: float, close_threshold: float):
+    @staticmethod
+    def processStockOrder(open_threshold: float, close_threshold: float):
         """
         自定义订单撮合函数
         :param open_threshold:   当前开仓最多只能成交这根K线成交量的open_threshold倍
@@ -63,9 +64,10 @@ class Counter(CounterBehavior):
                                 order.vol -= openVolThreshold
                                 vol = openVolThreshold
                             if vol >= 1.0:
-                                self.openStock(direction=direction, symbol=symbol, vol=vol, price=price,
+                                Counter.openStock(direction=direction, symbol=symbol, vol=vol, price=price,
                                                static_profit=order.static_profit, static_loss=order.static_loss,
                                                dynamic_profit=order.dynamic_profit, dynamic_loss=order.dynamic_loss,
+                                               min_timestamp=order.min_timestamp, max_timestamp=order.max_timestamp,
                                                reason=order.reason)
                         # 平仓订单
                         else:
@@ -77,14 +79,15 @@ class Counter(CounterBehavior):
                                 order.vol -= closeVolThreshold
                                 vol = closeVolThreshold
                             if vol >= 1.0:
-                                self.closeStock(direction=direction, symbol=symbol, vol=vol, price=price,
+                                Counter.closeStock(direction=direction, symbol=symbol, vol=vol, price=price,
                                                 reason=order.reason)
 
         # 删除柜台已经完全成交的订单
         for order_id in delete_ids:
             stockCounter.pop(order_id)
 
-    def processFutureOrder(self, open_threshold: float, close_threshold: float):
+    @staticmethod
+    def processFutureOrder(open_threshold: float, close_threshold: float):
         """
         自定义订单撮合函数
         :param open_threshold:   当前开仓最多只能成交这根K线成交量的open_threshold倍
@@ -140,7 +143,7 @@ class Counter(CounterBehavior):
                                 order.vol -= openVolThreshold
                                 vol = openVolThreshold
                             if vol >= 1.0:
-                                self.openFuture(direction=direction, symbol=symbol, vol=vol, price=price,
+                                Counter.openFuture(direction=direction, symbol=symbol, vol=vol, price=price,
                                                static_profit=order.static_profit, static_loss=order.static_loss,
                                                dynamic_profit=order.dynamic_profit, dynamic_loss=order.dynamic_loss,
                                                reason=order.reason)
@@ -154,7 +157,7 @@ class Counter(CounterBehavior):
                                 order.vol -= closeVolThreshold
                                 vol = closeVolThreshold
                             if vol >= 1.0:
-                                self.closeFuture(direction=direction, symbol=symbol, vol=vol, price=price,
+                                Counter.closeFuture(direction=direction, symbol=symbol, vol=vol, price=price,
                                                 reason=order.reason)
         # 删除柜台已经完全成交的订单
         for order_id in delete_ids:

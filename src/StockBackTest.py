@@ -42,6 +42,11 @@ if __name__ == "__main__":
                           min_order_timestamp=context.current_timestamp, max_order_timestamp=pd.Timestamp("20250101"),
                           min_timestamp=context.current_timestamp, max_timestamp=pd.Timestamp("20250101"),
                           commission=0.0005, partial_order=False, reason="testOpen")
+        Counter.processStockOrder(0.5,0.5)
+        Counter.afterBarStock()
+        Counter.monitorStockPosition("long",True)
+        Counter.monitorStockPosition("short",True)
+        Counter.afterDayStock()
     print(context.stockLongPosition)
     for pos in context.stockLongPosition["000001.SZ"]:
         print(pos.__dict__)
