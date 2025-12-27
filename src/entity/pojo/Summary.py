@@ -39,7 +39,7 @@ class StockSummary(Summary):
         amount1 = amount0 + price * vol
 
         # 赋值回summary
-        self.total_vol = vol
+        self.total_vol = vol1
         self.ori_price = amount1 / vol1
 
     # 平仓回调函数
@@ -90,7 +90,7 @@ class FutureSummary(Summary):
         amount1 = amount0 + price * vol
 
         # 赋值回summary
-        self.total_vol = vol
+        self.total_vol = vol1
         self.ori_price = amount1 / vol1
 
     # 平仓回调函数

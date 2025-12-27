@@ -56,7 +56,7 @@ class Counter(CounterBehavior):
                     if low<=price<=high:
                         # 开仓订单
                         if order_type == "open":
-                            openVolThreshold = int(vol * open_threshold)
+                            openVolThreshold = int(volume * open_threshold)
                             if vol<=openVolThreshold:   # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
@@ -71,7 +71,7 @@ class Counter(CounterBehavior):
                                                reason=order.reason)
                         # 平仓订单
                         else:
-                            closeVolThreshold = int(vol * close_threshold)
+                            closeVolThreshold = int(volume * close_threshold)
                             if vol<=closeVolThreshold:  # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
@@ -135,7 +135,7 @@ class Counter(CounterBehavior):
                     if low<=price<=high:
                         # 开仓订单
                         if order_type == "open":
-                            openVolThreshold = int(vol * open_threshold)
+                            openVolThreshold = int(volume * open_threshold)
                             if vol<=openVolThreshold:   # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
@@ -149,7 +149,7 @@ class Counter(CounterBehavior):
                                                reason=order.reason)
                         # 平仓订单
                         else:
-                            closeVolThreshold = int(vol * close_threshold)
+                            closeVolThreshold = int(volume * close_threshold)
                             if vol<=closeVolThreshold:  # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
