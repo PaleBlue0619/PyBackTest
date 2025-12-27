@@ -29,11 +29,11 @@ class StockPosition(Position):
         self.static_profit = static_profit
         self.static_loss = static_loss
         if self.sign == 1:
-            self.static_high = price * (1 + static_profit)
-            self.static_low = price * (1 - static_loss)
+            self.static_high = price * (1 + static_profit) if static_profit else None
+            self.static_low = price * (1 - static_loss) if static_loss else None
         else:
-            self.static_high = price * (1 + static_loss)
-            self.static_low = price * (1 - static_profit)
+            self.static_high = price * (1 + static_loss) if static_loss else None
+            self.static_low = price * (1 - static_profit) if static_profit else None
         self.dynamic_monitor = 0 # 是否需要监控动态止盈止损
         self.dynamic_profit = dynamic_profit
         self.dynamic_loss = dynamic_loss

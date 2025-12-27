@@ -15,6 +15,7 @@ class fromDolphinDB:
 
 class toParquet(fromDolphinDB):
     def __init__(self, dateCol:str, savePath: str, startDate: pd.Timestamp = None, endDate: pd.Timestamp = None,
+                 processSQL: str = None,    # 新增: 为了对原始数据进行处理
                  **kwargs):
         super().__init__(
             kwargs.get("session"),
@@ -22,6 +23,7 @@ class toParquet(fromDolphinDB):
             kwargs.get('dataTB'),
             kwargs.get('transDict', {})
         )
+        self.processSQL = processSQL
         self.dateCol = dateCol
         self.dateList = []
         startDotDate = startDate.strftime("%Y.%m.%d")
@@ -55,6 +57,13 @@ class toParquet(fromDolphinDB):
             transNames = {transNames};
             <select _$$colNames as _$$transNames from loadTable("{self.dataDB}","{self.dataTB}") where {self.dateCol} = {dateDotStr}>.eval()
         """
+        if self.processSQL:
+            script = f"""
+            colNames = {colNames};
+            transNames = {transNames};
+            df = <select _$$colNames as _$$transNames from loadTable("{self.dataDB}","{self.dataTB}") where {self.dateCol} = {dateDotStr}>.eval();
+            {self.processSQL}
+            """
         df = s.run(script,disableDecimal=True)
         df.to_parquet(os.path.join(self.savePath, dateStr+".pqt"))
 
@@ -72,6 +81,13 @@ class toParquet(fromDolphinDB):
             transNames = {transNames};
             <select _$$colNames as _$$transNames from loadTable("{self.dataDB}","{self.dataTB}")>.eval()
         """
+        if self.processSQL:
+            script = f"""
+            colNames = {colNames};
+            transNames = {transNames};
+            df = <select _$$colNames as _$$transNames from loadTable("{self.dataDB}","{self.dataTB}")>.eval();
+            {self.processSQL}
+            """
         df = s.run(script,disableDecimal=True)
         df.to_parquet(os.path.join(self.savePath, fileName+".pqt"))
         return 0
@@ -90,23 +106,54 @@ class toParquet(fromDolphinDB):
 if __name__ == "__main__":
     session = ddb.Session()
     session.connect("172.16.0.184",8001,"maxim","dyJmoc-tiznem-1figgu")
-    trans_dict = {
+
+    # # 股票行情数据
+    # trans_dict = {
+    #     "code": "symbol",
+    #     "tradeDate": "TradeDate",
+    #     "open": "open",
+    #     "high": "high",
+    #     "low": "low",
+    #     "close": "close",
+    #     "volume": "volume"
+    # }
+    # source = toParquet(
+    #     dateCol="tradeDate",
+    #     savePath="D:/BackTest/PyBackTest/data/stock_cn/bar",
+    #     startDate=pd.Timestamp("2020-01-01"),
+    #     endDate=pd.Timestamp("2021-01-01"),
+    #     dataDB="dfs://MinKDB",
+    #     dataTB="TuStockDayK",
+    #     transDict=trans_dict,
+    #     session=session
+    # )
+    # source.run(n_jobs=10)
+
+    # 股票信息数据
+    info_dict = {
         "code": "symbol",
         "tradeDate": "TradeDate",
-        "open": "open",
-        "high": "high",
-        "low": "low",
-        "close": "close",
-        "volume": "volume"
+        "open": "open_price",
+        "high": "high_price",
+        "low": "low_price",
+        "close": "close_price"
     }
-    source = toParquet(
+    processSQL = """
+    maxDate = exec max(TradeDate) from df; // 全局最大时间戳
+    df = select *, min(TradeDate) as start_date, min(max(TradeDate),maxDate) as end_date 
+        from df context by symbol // 添加了start_date & end_date 作为辅助时间戳
+    update df set end_date = iif(end_date == max(end_date), end_date, 2030.01.01);
+    df
+    """
+    infoSource = toParquet(
         dateCol="tradeDate",
-        savePath="D:/BackTest/PyBackTest/data/stock_cn/bar",
+        savePath="D:/BackTest/PyBackTest/data/stock_cn/info",
         startDate=pd.Timestamp("2020-01-01"),
-        endDate=pd.Timestamp("2021-01-01"),
+        endDate=pd.Timestamp("2025-12-31"),
         dataDB="dfs://MinKDB",
         dataTB="TuStockDayK",
-        transDict=trans_dict,
-        session=session
+        transDict=info_dict,
+        session=session,
+        processSQL=processSQL
     )
-    source.run(n_jobs=10)
+    infoSource.run(n_jobs=10)

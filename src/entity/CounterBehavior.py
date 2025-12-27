@@ -182,7 +182,8 @@ class CounterBehavior(TradeBehavior):
                     context.futureRealTimeProfit += realTimeProfit
                     context.futureSettleProfit += settleProfit
 
-    def openStock(self, direction: str, symbol: str, vol: int, price: float,
+    @staticmethod
+    def openStock(direction: str, symbol: str, vol: int, price: float,
                   static_profit: float, static_loss: float,
                   dynamic_profit: float, dynamic_loss: float,
                   min_timestamp: pd.Timestamp, max_timestamp: pd.Timestamp,
@@ -203,9 +204,9 @@ class CounterBehavior(TradeBehavior):
         if direction == "long":
             if symbol not in context.stockLongPosition:  # 说明没有该股票多头的持仓
                 context.stockLongPosition[symbol] = []
-            context.stockLongPosition.append(pos)
+            context.stockLongPosition[symbol].append(pos)
             # 初始化Summary对象
-            if symbol not in context.stockLongSummary:  # 说明没有该股票多头的持仓视图
+            if symbol not in context.stockLongSummary:  # 说明没有该股票空头的持仓视图
                 context.stockLongSummary[symbol] = StockSummary(direction, ori_price=price,
                                                                 total_vol=vol,
                                                                 static_profit=static_profit,
@@ -216,11 +217,11 @@ class CounterBehavior(TradeBehavior):
                 context.stockLongSummary[symbol].openUpdate(price, vol, static_profit, static_loss,
                                                             dynamic_profit, dynamic_loss)
         else:
-            if symbol not in context.stockShortPosition:  # 说明没有该股票多头的持仓
+            if symbol not in context.stockShortPosition:  # 说明没有该股票空头的持仓
                 context.stockShortPosition[symbol] = []
-            context.stockShortPosition.append(pos)
+            context.stockShortPosition[symbol].append(pos)
             # 初始化Summary对象
-            if symbol not in context.stockShortSummary:  # 说明没有该股票多头的持仓视图
+            if symbol not in context.stockShortSummary:  # 说明没有该股票空头的持仓视图
                 context.stockShortSummary[symbol] = StockSummary(direction, ori_price=price,
                                                                  total_vol=vol,
                                                                  static_profit=static_profit,
@@ -232,7 +233,8 @@ class CounterBehavior(TradeBehavior):
                                                              dynamic_profit, dynamic_loss)
         # TODO: 记录
 
-    def openFuture(self, direction: str, symbol: str, vol: int, price: float,
+    @staticmethod
+    def openFuture(direction: str, symbol: str, vol: int, price: float,
                    static_profit: float, static_loss: float,
                    dynamic_profit: float, dynamic_loss: float,
                    min_timestamp: pd.Timestamp, max_timestamp: pd.Timestamp,
@@ -289,7 +291,8 @@ class CounterBehavior(TradeBehavior):
                                                                                 dynamic_profit, dynamic_loss)
         # TODO: 记录
 
-    def closeStock(self, direction: str, symbol: str, price: float, vol: int,
+    @staticmethod
+    def closeStock(direction: str, symbol: str, price: float, vol: int,
                    reason: str):
         """
         股票平仓
@@ -378,7 +381,8 @@ class CounterBehavior(TradeBehavior):
         context.stockRealTimeProfit += profitDiff
         # TODO: Record
 
-    def closeFuture(self, direction: str, symbol: str, price: float, vol: int, reason: str):
+    @staticmethod
+    def closeFuture(direction: str, symbol: str, price: float, vol: int, reason: str):
         """
         期货平仓
         """
@@ -496,7 +500,8 @@ class CounterBehavior(TradeBehavior):
         context.futureRealTimeProfit += profitDiff
         # TODO: Record
 
-    def monitorStockPosition(self, direction: str, sequence: bool):
+    @staticmethod
+    def monitorStockPosition(direction: str, sequence: bool):
         """
         【柜台处理订单后运行,可重复运行】每日盘中运行,负责监控当前持仓是否满足限制平仓要求
         sequence=true 假设high先到来
@@ -607,7 +612,8 @@ class CounterBehavior(TradeBehavior):
                                              reason="动态最高价")
                             continue
 
-    def monitorFuturePosition(self, direction: str, sequence: bool):
+    @staticmethod
+    def monitorFuturePosition(direction: str, sequence: bool):
         """
         【柜台处理订单后运行,可重复运行】每日盘中运行,负责监控当前持仓是否满足限制平仓要求
         sequence=true 假设high先到来
