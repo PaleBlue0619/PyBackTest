@@ -41,9 +41,8 @@ class StockOpenOrder(StockOrder):
                  min_order_timestamp: pd.Timestamp,
                  max_order_timestamp: pd.Timestamp,
                  static_profit: float, static_loss: float, dynamic_profit: float,
-                 dynamic_loss: float, commission: float, reason: str, partialOrder: bool):
-        super().__init__(direction, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
-        self.order_type = "open"
+                 dynamic_loss: float, commission: float,  partialOrder: bool, reason: str):
+        super().__init__(direction, "open", symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.partialOrder = partialOrder
         self.min_timestamp = min_timestamp
         self.max_timestamp = max_timestamp
@@ -64,8 +63,7 @@ class FutureOpenOrder(FutureOrder):
                  max_order_timestamp: pd.Timestamp,
                  static_profit: float, static_loss: float, dynamic_profit: float,
                  dynamic_loss: float, commission: float, reason: str, partialOrder: bool):
-        super().__init__(direction, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
-        self.order_type = "open"
+        super().__init__(direction, "open", symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.partialOrder = partialOrder
         self.min_timestamp = min_timestamp
         self.max_timestamp = max_timestamp
@@ -81,8 +79,7 @@ class StockCloseOrder(StockOrder):
     def __init__(self, direction: str, symbol: str, vol: int, price: float,
                  create_timestamp: pd.Timestamp, min_order_timestamp: pd.Timestamp,
                  max_order_timestamp: pd.Timestamp, reason: str, partialOrder: bool):
-        super().__init__(direction, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
-        self.order_type = "close"
+        super().__init__(direction, "close", symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.partialOrder = partialOrder
 
 
@@ -90,6 +87,5 @@ class FutureCloseOrder(FutureOrder):
     def __init__(self, direction: str, symbol: str, vol: int, price: float,
                  create_timestamp: pd.Timestamp, min_order_timestamp: pd.Timestamp,
                  max_order_timestamp: pd.Timestamp, reason: str, partialOrder: bool):
-        super().__init__(direction, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
-        self.order_type = "close"
+        super().__init__(direction, "close", symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.partialOrder = partialOrder
