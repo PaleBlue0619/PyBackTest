@@ -26,10 +26,12 @@ class CounterBehavior(TradeBehavior):
         cashDiff = 0.0  # 需要从现金账户中扣除的资金余额/ 负数表示从仓位的保证金属性中还回来的余额
         longPos: Dict[str, List[FuturePosition]] = context.futureLongPosition
         shortPos: Dict[str, List[FuturePosition]] = context.futureShortPosition
-        for symbol in longPos:
-            cashDiff += longPos[symbol].marginRateUpdate(futureInfo[symbol].margin_rate)
-        for symbol in shortPos:
-            cashDiff += shortPos[symbol].marginRateUpdate(futureInfo[symbol].margin_rate)
+        for symbol, posList in longPos.items():
+            for pos in posList:
+                cashDiff += pos.marginRateUpdate(futureInfo[symbol].margin_rate)
+        for symbol, posList in shortPos.items():
+            for pos in posList:
+                cashDiff += pos.marginRateUpdate(futureInfo[symbol].margin_rate)
 
         # 更新当前资金
         context.futureCash -= cashDiff
@@ -105,8 +107,8 @@ class CounterBehavior(TradeBehavior):
         minute = context.current_minute
         timestamp = context.current_timestamp
         dataDict = DataDict.get_instance()
-        barDict: Dict = dataDict.stockKDict[minute]
-        infoDict: Dict[str, StockInfo] = dataDict.stockInfoDict[day]
+        barDict: Dict = dataDict.futureKDict[minute]
+        infoDict: Dict[str, StockInfo] = dataDict.futureInfoDict
 
         # 获取持仓 & 持仓视图
         futureLongPos: Dict[str, List[FuturePosition]] = context.futureLongPosition
@@ -256,10 +258,12 @@ class CounterBehavior(TradeBehavior):
         if symbol not in futureInfo:
             print(f"期货合约信息字典中不存在该期货合约:{symbol}")
             return
-        margin_rate = futureInfo[symbol]["margin_rate"]
+        margin_rate = futureInfo[symbol].margin_rate # 保证金率
+        pre_settle = futureInfo[symbol].pre_settle  # 昨结算价
         context.cash -= vol * price * margin_rate
         context.stockCash -= vol * price * margin_rate
-        pos = FuturePosition(direction, symbol, price, vol, margin_rate,
+        pos = FuturePosition(direction, symbol, price, vol,
+                             pre_settle, margin_rate,
                              min_timestamp, max_timestamp,
                              static_profit, static_loss,
                              dynamic_profit, dynamic_loss
@@ -267,10 +271,10 @@ class CounterBehavior(TradeBehavior):
         if direction == "long":
             if symbol not in context.futureLongPosition:  # 说明没有该期货多头的持仓
                 context.futureLongPosition[symbol] = []
-            context.futureLongPosition.append(pos)
+            context.futureLongPosition[symbol].append(pos)
             # 初始化Summary对象
-            if symbol not in context.futureLongPosition:  # 说明没有该股票多头的持仓视图
-                context.futureLongPosition[symbol] = FutureSummary(direction, ori_price=price,
+            if symbol not in context.futureLongSummary:  # 说明没有该期货多头的持仓视图
+                context.futureLongSummary[symbol] = FutureSummary(direction, ori_price=price,
                                                                    total_vol=vol,
                                                                    static_profit=static_profit,
                                                                    static_loss=dynamic_loss,
@@ -280,20 +284,20 @@ class CounterBehavior(TradeBehavior):
                 context.futureLongSummary[symbol].openUpdate(price, vol, static_profit, static_loss,
                                                              dynamic_profit, dynamic_loss)
         else:
-            if symbol not in context.futureShortPosition:  # 说明没有该期货多头的持仓
+            if symbol not in context.futureShortPosition:  # 说明没有该期货空头的持仓
                 context.futureShortPosition[symbol] = []
-            context.futureShortPosition.append(pos)
+            context.futureShortPosition[symbol].append(pos)
             # 初始化Summary对象
-            if symbol not in context.futureShortPosition:  # 说明没有该股票多头的持仓视图
-                context.futureShortPosition[symbol] = FutureSummary(direction, ori_price=price,
+            if symbol not in context.futureShortSummary:  # 说明没有该期货空头的持仓视图
+                context.futureShortSummary[symbol] = FutureSummary(direction, ori_price=price,
                                                                     total_vol=vol,
                                                                     static_profit=static_profit,
                                                                     static_loss=dynamic_loss,
                                                                     dynamic_profit=dynamic_profit,
                                                                     dynamic_loss=dynamic_loss)
             else:
-                context.futureLongSumfutureShortPositionmary[symbol].openUpdate(price, vol, static_profit, static_loss,
-                                                                                dynamic_profit, dynamic_loss)
+                context.futureShortSummary[symbol].openUpdate(price, vol, static_profit, static_loss,
+                                                                dynamic_profit, dynamic_loss)
         # TODO: 记录
 
     @staticmethod
@@ -444,7 +448,8 @@ class CounterBehavior(TradeBehavior):
                 preMargin = pre_margin_list[i]
                 holdDays = hold_days_list[i]
                 preSettle = pre_settle_list[i]
-                profit += (price - posPrice) * posVol * posSign  # 平仓盈亏
+                posSign = sign_list[i]
+                profit += (price - oriPrice) * posVol * posSign  # 平仓盈亏
                 if holdDays == 0:  # TODO: 日内平仓,需要添加对应的逻辑
                     settleProfit += (price - oriPrice) * posVol * posSign
                     profitDiff += (price - prePrice) * posVol * posSign
@@ -454,11 +459,11 @@ class CounterBehavior(TradeBehavior):
                 margin += preMargin  # (preMargin + settleProfit) # 这里保证金是实时更新的
             # 再对持仓&持仓视图进行批处理
             if direction == "long":
-                del context.stockLongSummary[symbol]  # 直接删除该标的的持仓视图
-                del context.stockLongPosition[symbol]  # 直接删除该标的的持仓
+                del context.futureLongSummary[symbol]  # 直接删除该标的的持仓视图
+                del context.futureLongPosition[symbol]  # 直接删除该标的的持仓
             else:
-                del context.stockShortSummary[symbol]
-                del context.stockShortPosition[symbol]
+                del context.futureShortSummary[symbol]
+                del context.futureShortPosition[symbol]
 
         else:  # 部分平仓
             # 先对视图进行批处理
@@ -471,6 +476,7 @@ class CounterBehavior(TradeBehavior):
                 oriPrice = ori_price_list[i]
                 preMargin = pre_margin_list[i]
                 preSettle = pre_settle_list[i]
+                prePrice = pre_price_list[i]
                 holdDays = hold_days_list[i]
                 posSign = sign_list[i]
                 if max_vol >= posVol:  # 当前仓位能够全部平仓
@@ -633,7 +639,7 @@ class CounterBehavior(TradeBehavior):
             totalPos: List[FuturePosition] = context.futureLongPosition
         else:
             totalPos: List[FuturePosition] = context.futureShortPosition
-        if len(pos) == 0:
+        if len(totalPos) == 0:
             return
 
         dataDict = DataDict.get_instance()

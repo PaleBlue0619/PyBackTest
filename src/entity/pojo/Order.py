@@ -20,16 +20,12 @@ class StockOrder(Order):
         super().__init__(order_type, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.partialOrder = False # 默认当前订单为完整订单
         self.order_direction = direction
-        self.static_profit = 0.0
-        self.static_loss = 0.0
-        self.dynamic_profit = 0.0
-        self.dynamic_loss = 0.0
 
 class FutureOrder(Order):
-    def __init__(self, direction: str, symbol: str, vol: int, price: float,
+    def __init__(self, direction: str, order_type: str, symbol: str, vol: int, price: float,
                  create_timestamp: pd.Timestamp, min_order_timestamp: pd.Timestamp,
                  max_order_timestamp: pd.Timestamp, reason: str):
-        super().__init__(symbol, vol, price, create_timestamp, min_timestamp, max_timestamp, min_order_timestamp, max_order_timestamp, reason)
+        super().__init__(order_type, symbol, vol, price, create_timestamp, min_order_timestamp, max_order_timestamp, reason)
         self.order_direction = direction
         self.partialOrder = False   # 默认当前订单为完整订单
 

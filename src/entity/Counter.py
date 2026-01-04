@@ -41,7 +41,7 @@ class Counter(CounterBehavior):
             partialOrder = order.partialOrder
             if max_order_timestamp <= timestamp:    # 订单已过期
                 delete_ids.append(order_id)
-                print("OrderNum:"+order_id+"Behavior:"+order_type+"Direction:"+direction+"symbol:"+symbol+"price:"+str(price)+"vol:"+str(vol)+"failed[Out of Timestamp]");
+                print("OrderNum:"+str(order_id)+"Behavior:"+str(order_type)+"Direction:"+str(direction)+"symbol:"+str(symbol)+"price:"+str(price)+"vol:"+str(vol)+"failed[Out of Timestamp]");
             elif timestamp >= min_order_timestamp:
                 if symbol not in barDict:
                     continue
@@ -120,7 +120,7 @@ class Counter(CounterBehavior):
             partialOrder = order.partialOrder
             if max_order_timestamp <= timestamp:    # 订单已过期
                 delete_ids.append(order_id)
-                print("OrderNum:"+order_id+"Behavior:"+order_type+"Direction:"+direction+"symbol:"+symbol+"price:"+str(price)+"vol:"+str(vol)+"failed[Out of Timestamp]");
+                print("OrderNum:"+str(order_id)+"Behavior:"+str(order_type)+"Direction:"+str(direction)+"symbol:"+str(symbol)+"price:"+str(price)+"vol:"+str(vol)+"failed[Out of Timestamp]");
             elif timestamp >= min_order_timestamp:
                 if symbol not in barDict:
                     continue
@@ -146,6 +146,7 @@ class Counter(CounterBehavior):
                                 Counter.openFuture(direction=direction, symbol=symbol, vol=vol, price=price,
                                                static_profit=order.static_profit, static_loss=order.static_loss,
                                                dynamic_profit=order.dynamic_profit, dynamic_loss=order.dynamic_loss,
+                                               min_timestamp=order.min_timestamp, max_timestamp=order.max_timestamp,
                                                reason=order.reason)
                         # 平仓订单
                         else:

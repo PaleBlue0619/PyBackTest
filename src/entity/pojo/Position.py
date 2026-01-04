@@ -144,11 +144,11 @@ class FuturePosition(Position):
         self.static_profit = static_profit
         self.static_loss = static_loss
         if self.sign == 1:
-            self.static_high = price * (1 + static_profit)
-            self.static_low = price * (1 - static_loss)
+            self.static_high = price * (1 + static_profit) if static_profit else None
+            self.static_low = price * (1 - static_loss) if static_loss else None
         else:
-            self.static_high = price * (1 + static_loss)
-            self.static_low = price * (1 - static_profit)
+            self.static_high = price * (1 + static_loss) if static_loss else None
+            self.static_low = price * (1 - static_profit) if static_profit else None
         self.dynamic_monitor = 0 # 是否需要监控动态止盈止损
         self.dynamic_profit = dynamic_profit
         self.dynamic_loss = dynamic_loss
@@ -205,8 +205,8 @@ class FuturePosition(Position):
         :return:
         """
         if self.time_monitor == 0:
-            min_date = self.min_timestamp.date()
-            max_date = self.max_timestamp.date()
+            min_date = pd.Timestamp(self.min_timestamp.date())
+            max_date = pd.Timestamp(self.max_timestamp.date())
             if min_date < current_date: # T+1
                 self.time_monitor = -2
             elif end_date > current_date > min_date and current_date < max_date:

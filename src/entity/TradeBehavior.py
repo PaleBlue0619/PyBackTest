@@ -89,7 +89,8 @@ class TradeBehavior:
         context.futureCounter[orderNum] = order
         # TODO: 添加到记录中
 
-    def orderCloseFuture(self, direction: str, symbol: str, vol: int, price: float,
+    @staticmethod
+    def orderCloseFuture(direction: str, symbol: str, vol: int, price: float,
                          min_order_timestamp: pd.Timestamp, max_order_timestamp: pd.Timestamp,
                          reason: str, partial_order: bool):
         # 获取配置实例

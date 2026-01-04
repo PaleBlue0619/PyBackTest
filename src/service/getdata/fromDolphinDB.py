@@ -129,29 +129,86 @@ if __name__ == "__main__":
     # )
     # source.run(n_jobs=10)
 
-    # 股票信息数据
+    # # # 期货行情数据
+    # trans_dict = {
+    #     "trade_date": "TradeDate",
+    #     "ts_code": "symbol",
+    #     "open": "open",
+    #     "high": "high",
+    #     "low": "low",
+    #     "close": "close",
+    #     "volume": "volume"
+    # }
+    # processSQL = """
+    # select * from df where strlen(symbol.split(".")[0])>=5
+    # """
+    # source = toParquet(
+    #     dateCol="trade_date",
+    #     savePath="D:/BackTest/PyBackTest/data/future_cn/bar",
+    #     startDate=pd.Timestamp("2020-01-01"),
+    #     endDate=pd.Timestamp("2021-01-01"),
+    #     dataDB="dfs://DayKDB",
+    #     dataTB="o_tushare_futures_daily",
+    #     transDict=trans_dict,
+    #     session=session,
+    #     processSQL=processSQL
+    # )
+    # source.run(n_jobs=10)
+
+    # # 股票信息数据
+    # info_dict = {
+    #     "code": "symbol",
+    #     "tradeDate": "TradeDate",
+    #     "open": "open_price",
+    #     "high": "high_price",
+    #     "low": "low_price",
+    #     "close": "close_price"
+    # }
+    # processSQL = """
+    # maxDate = exec max(TradeDate) from df; // 全局最大时间戳
+    # df = select *, min(TradeDate) as start_date, min(max(TradeDate),maxDate) as end_date
+    #     from df context by symbol // 添加了start_date & end_date 作为辅助时间戳
+    # update df set end_date = iif(end_date == max(end_date), end_date, 2030.01.01);
+    # df
+    # """
+    # infoSource = toParquet(
+    #     dateCol="tradeDate",
+    #     savePath="D:/BackTest/PyBackTest/data/stock_cn/info",
+    #     startDate=pd.Timestamp("2020-01-01"),
+    #     endDate=pd.Timestamp("2025-12-31"),
+    #     dataDB="dfs://MinKDB",
+    #     dataTB="TuStockDayK",
+    #     transDict=info_dict,
+    #     session=session,
+    #     processSQL=processSQL
+    # )
+    # infoSource.run(n_jobs=10)
+
+    # # 期货信息数据
     info_dict = {
-        "code": "symbol",
-        "tradeDate": "TradeDate",
+        "trade_date": "tradeDate",
+        "ts_code": "symbol",
         "open": "open_price",
         "high": "high_price",
         "low": "low_price",
-        "close": "close_price"
+        "close": "close_price",
+        "pre_settle": "pre_settle",
+        "settle": "settle"
     }
     processSQL = """
     maxDate = exec max(TradeDate) from df; // 全局最大时间戳
-    df = select *, min(TradeDate) as start_date, min(max(TradeDate),maxDate) as end_date 
-        from df context by symbol // 添加了start_date & end_date 作为辅助时间戳
+    df = select *, min(TradeDate) as start_date, min(max(TradeDate),maxDate) as end_date
+         from df context by symbol // 添加了start_date & end_date 作为辅助时间戳
     update df set end_date = iif(end_date == max(end_date), end_date, 2030.01.01);
     df
     """
     infoSource = toParquet(
-        dateCol="tradeDate",
-        savePath="D:/BackTest/PyBackTest/data/stock_cn/info",
+        dateCol="trade_date",
+        savePath="D:/BackTest/PyBackTest/data/future_cn/info",
         startDate=pd.Timestamp("2020-01-01"),
         endDate=pd.Timestamp("2025-12-31"),
-        dataDB="dfs://MinKDB",
-        dataTB="TuStockDayK",
+        dataDB="dfs://DayKDB",
+        dataTB="o_tushare_futures_daily",
         transDict=info_dict,
         session=session,
         processSQL=processSQL
