@@ -13,7 +13,7 @@ if __name__ == "__main__":
     endDate = "2021.01.01"
     barPath = r"D:\\BackTest\\PyBackTest\\data\\future_cn\\bar"
     infoPath = r"D:\\BackTest\\PyBackTest\\data\\future_cn\\info"
-    configPath = r"D:\\BackTest\\JavaBackTest\\src\\main\\java\\com\\maxim\\backtest_config.json"
+    configPath = r"D:\BackTest\PyBackTest\src\backtest_config.json"
 
     with open(configPath, "r") as f:
         config = json5.load(f)
@@ -28,20 +28,21 @@ if __name__ == "__main__":
         barDF = pd.read_parquet(os.path.join(barPath, tradeDate.strftime("%Y%m%d")+".pqt"))
         infoDF = pd.read_parquet(os.path.join(infoPath, tradeDate.strftime("%Y%m%d")+".pqt"))
         futureBarDict = fromDataFrame(barDF).toFutureBar(False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
-        futureInfoDict = fromDataFrame(infoDF).toFutureInfo("tradeDate", "symbol", "open_price", "high_price", "low_price", "close_price", "pre_settle", "settle", "start_date", "end_date")
+        futureInfoDict = fromDataFrame(infoDF).toFutureInfo("tradeDate", "symbol", "open_price", "high_price", "low_price", "close_price",
+                                                            "pre_settle", "settle", "start_date", "end_date")
         print(barDF[barDF["symbol"]=="A2001.DCE"])
-
         # 基本属性赋值
         context.current_date = tradeDate
         context.current_minute = pd.Timestamp(tradeDate.strftime("%Y%m%d")+" 15:00:00.000")
         context.current_timestamp = pd.Timestamp(tradeDate.strftime("%Y%m%d")+" 15:00:00.000")
         dataDict.set_futureKDict(futureBarDict)
         dataDict.set_futureInfoDict(futureInfoDict)
+        # 柜台下单及处理
         Counter.beforeDayFuture()   # 期货保证金变动处理
-        Counter.orderOpenFuture(direction="long", symbol="A2001.DCE", vol=1, price=3375, static_profit=None, static_loss=None,
+        Counter.orderOpenFuture(direction="long", symbol="A2001.DCE", vol=1000, price=3375, static_profit=None, static_loss=None,
                                 dynamic_profit=None, dynamic_loss=None, min_order_timestamp=context.current_timestamp, max_order_timestamp=pd.Timestamp("20200105"),
                                 min_timestamp=context.current_timestamp, max_timestamp=pd.Timestamp("20250101"), commission=0.0005, partial_order=False, reason="testOpen")
-        Counter.orderCloseFuture(direction="long", symbol="A2001.DCE", vol=1, price=3381, min_order_timestamp=context.current_timestamp,
+        Counter.orderCloseFuture(direction="long", symbol="A2001.DCE", vol=1000, price=3380, min_order_timestamp=context.current_timestamp,
                                  max_order_timestamp=pd.Timestamp("20200105"), partial_order=False, reason="testClose")
         Counter.processFutureOrder(1.0,1.0)
         Counter.afterBarFuture()
@@ -49,7 +50,7 @@ if __name__ == "__main__":
         Counter.monitorFuturePosition("short",True)
         Counter.afterDayFuture()
         print(context.cash)
-
     t1 = time.time()
     print(f"{t1-t0}s")
+    print(context.futureRealTimeProfit, context.futureProfit, context.profit)
     print(context.futureLongSummary)

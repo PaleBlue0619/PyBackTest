@@ -22,18 +22,19 @@ class Context:
         if not Context._initialized:
             Context._initialized = True
             # 用户自定义类
-            self.data_type = None
             self.start_date = None
             self.end_date = None
-            self.strategy_name = None
             self.cash = None
             self.stockCash = None
             self.futureCash = None
-            self.optionCash = None
             self.seed = 42
+            self.freq = None
             self.run_stock = False
             self.run_future = False
-            self.run_option = False
+            self.stockBarPath = None
+            self.futureBarPath = None
+            self.stockInfoPath = None
+            self.futureInfoPath = None
 
             # 框架维护的属性
             self.current_date = None
@@ -42,7 +43,6 @@ class Context:
             self.oriCash = self.cash
             self.oriStockCash = self.stockCash
             self.oriFutureCash = self.futureCash
-            self.oriOptionCash = self.optionCash
             self.profit = 0.0   # 平仓盈亏
             self.realTimeProfit = 0.0   # 实时盈亏
             self.stockProfit = 0.0
@@ -50,11 +50,8 @@ class Context:
             self.futureProfit = 0.0
             self.futureRealTimeProfit = 0.0
             self.futureSettleProfit = 0.0
-            self.optionProfit = 0.0
-            self.optionRealTimeProfit = 0.0
             self.stockCounter: Dict[int, StockOrder] = {}  # 股票柜台队列
             self.futureCounter: Dict[int, FutureOrder] = {} # 期货柜台队列
-            self.optionCounter = {} # 期权柜台队列
             self.stockLongPosition: Dict[str, List[StockPosition]] = {}     # 股票多仓明细
             self.stockShortPosition: Dict[str, List[StockPosition]] = {}    # 股票空仓明细
             self.futureLongPosition: Dict[str, List[FuturePosition]] = {}    # 期货多仓明细
@@ -80,15 +77,17 @@ class Context:
 
     def initialize_from_config(self, config: dict):
         """从配置数据初始化"""
-        self.data_type = config["data_type"]
         self.start_date = config["start_date"]
         self.end_date = config["end_date"]
-        self.strategy_name = config["strategy_name"]
         self.cash = config["cash"]
         self.stockCash = config["stockCash"]
         self.futureCash = config["futureCash"]
-        self.optionCash = config["optionCash"]
-        self.seed = config["seed"]
+        self.stockBarPath = config["stockBarPath"]
+        self.stockInfoPath = config["stockInfoPath"]
+        self.futureBarPath = config["futureBarPath"]
+        self.futureInfoPath = config["futureInfoPath"]
+        # self.optionCash = config["optionCash"]
+        # self.seed = config["seed"]
         self.run_stock = config["run_stock"]
         self.run_future = config["run_future"]
-        self.run_option = config["run_option"]
+        # self.run_option = config["run_option"]

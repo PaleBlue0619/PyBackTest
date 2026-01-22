@@ -190,6 +190,11 @@ class CounterBehavior(TradeBehavior):
                     context.futureSettleProfit += settleProfit
 
     @staticmethod
+    def onTrade():
+        """"""
+
+    # openStock/closeStock/openFuture/closeFuture -> 均需要接onTrade回调函数
+    @staticmethod
     def openStock(direction: str, symbol: str, vol: int, price: float,
                   static_profit: float, static_loss: float,
                   dynamic_profit: float, dynamic_loss: float,
