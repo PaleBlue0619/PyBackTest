@@ -540,11 +540,14 @@ class CounterBehavior(TradeBehavior):
         infoDict: Dict[str, Dict] = dataDict.stockInfoDict
 
         for symbol in totalPos:
-            info = infoDict[symbol]
+            if symbol not in barDict:
+                continue
             bar = barDict[symbol]
-
             # 基本信息
-            end_date = info["end_date"]
+            if symbol in infoDict:  # 股票这里可以稍微松一点也没关系 -> 期货必须给出最后交易日
+                end_date = infoDict[symbol]["end_date"]
+            else:
+                end_date = pd.Timestamp("20300101")
             high_price = bar["high"]
             low_price = bar["low"]
             close_price = bar["close"]
@@ -653,9 +656,10 @@ class CounterBehavior(TradeBehavior):
         infoDict: Dict[str, Dict] = dataDict.futureInfoDict
 
         for symbol in totalPos:
+            if symbol not in barDict:
+                continue
             info = infoDict[symbol]
             bar = barDict[symbol]
-
             # 基本信息
             end_date = info["end_date"]
             high_price = bar["high"]
