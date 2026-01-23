@@ -9,6 +9,7 @@ from src.entity.Context import Context
 from src.entity.BackTester import BackTester
 import dolphindb as ddb
 import pandas as pd
+import numpy as np
 
 def initialize(context: Dict):
     """

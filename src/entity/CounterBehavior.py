@@ -3,11 +3,9 @@ from src.entity.Context import Context
 from src.entity.DataDict import DataDict
 from src.entity.TradeBehavior import TradeBehavior
 from src.entity.pojo.Order import *
-from src.entity.pojo.Info import *
 from src.entity.pojo.Position import *
 from src.entity.pojo.Summary import *
 from typing import Dict, List, Tuple
-
 
 class CounterBehavior(TradeBehavior):
     def __init__(self):
@@ -21,17 +19,17 @@ class CounterBehavior(TradeBehavior):
         dataDict = DataDict.get_instance()
 
         # 获取当前品种信息
-        futureInfo: Dict[str, FutureInfo] = dataDict.futureInfoDict
+        futureInfo: Dict[str, Dict] = dataDict.futureInfoDict
 
         cashDiff = 0.0  # 需要从现金账户中扣除的资金余额/ 负数表示从仓位的保证金属性中还回来的余额
         longPos: Dict[str, List[FuturePosition]] = context.futureLongPosition
         shortPos: Dict[str, List[FuturePosition]] = context.futureShortPosition
         for symbol, posList in longPos.items():
             for pos in posList:
-                cashDiff += pos.marginRateUpdate(futureInfo[symbol].margin_rate)
+                cashDiff += pos.marginRateUpdate(futureInfo[symbol]["margin_rate"])
         for symbol, posList in shortPos.items():
             for pos in posList:
-                cashDiff += pos.marginRateUpdate(futureInfo[symbol].margin_rate)
+                cashDiff += pos.marginRateUpdate(futureInfo[symbol]["margin_rate"])
 
         # 更新当前资金
         context.futureCash -= cashDiff
@@ -48,12 +46,12 @@ class CounterBehavior(TradeBehavior):
         context = Context.get_instance()
 
         # 获取当前K线
-        day = context.current_date
-        minute = context.current_minute
-        timestamp = context.current_timestamp
+        day: pd.Timestamp = context.current_date
+        minute: pd.Timestamp = context.current_minute
+        timestamp: pd.Timestamp = context.current_timestamp
         dataDict = DataDict.get_instance()
-        barDict: Dict = dataDict.stockKDict[minute]
-        infoDict: Dict[str, StockInfo] = dataDict.stockInfoDict
+        barDict: Dict[str, Dict] = dataDict.stockKDict[minute]
+        infoDict: Dict[str, Dict] = dataDict.stockInfoDict
 
         # 获取持仓 & 持仓视图
         stockLongPos: Dict[str, List[StockPosition]] = context.stockLongPosition
@@ -64,7 +62,7 @@ class CounterBehavior(TradeBehavior):
                                             (stockShortPos, context.stockShortSummary)]:
             for symbol in position_dict:
                 if symbol in infoDict:
-                    end_date = infoDict[symbol].end_date
+                    end_date = infoDict[symbol]["end_date"]
                     daily_high_price = barDict[symbol]["high"]
                     daily_low_price = barDict[symbol]["low"]
                 else:
@@ -103,12 +101,12 @@ class CounterBehavior(TradeBehavior):
         context = Context.get_instance()
 
         # 获取当前K线
-        day = context.current_date
-        minute = context.current_minute
-        timestamp = context.current_timestamp
+        day: pd.Timestamp = context.current_date
+        minute: pd.Timestamp = context.current_minute
+        timestamp: pd.Timestamp = context.current_timestamp
         dataDict = DataDict.get_instance()
-        barDict: Dict = dataDict.futureKDict[minute]
-        infoDict: Dict[str, StockInfo] = dataDict.futureInfoDict
+        barDict: Dict[str, Dict] = dataDict.futureKDict[minute]
+        infoDict: Dict[str, Dict] = dataDict.futureInfoDict
 
         # 获取持仓 & 持仓视图
         futureLongPos: Dict[str, List[FuturePosition]] = context.futureLongPosition
@@ -119,7 +117,7 @@ class CounterBehavior(TradeBehavior):
                                             (futureShortPos, context.futureShortSummary)]:
             for symbol in position_dict:
                 if symbol in infoDict:
-                    end_date = infoDict[symbol].end_date
+                    end_date = infoDict[symbol]["end_date"]
                     daily_high_price = barDict[symbol]["high"]
                     daily_low_price = barDict[symbol]["low"]
                 else:
@@ -170,7 +168,7 @@ class CounterBehavior(TradeBehavior):
         # 获取回测上下文实例
         context = Context.get_instance()
         dataDict = DataDict.get_instance()
-        infoDict: Dict[str, FutureInfo] = dataDict.futureInfoDict
+        infoDict: Dict[str, Dict] = dataDict.futureInfoDict
 
         # 多空仓位合并处理
         for position_dict, summary_dict in [(context.futureLongPosition, context.futureLongSummary),
@@ -180,7 +178,7 @@ class CounterBehavior(TradeBehavior):
                 # 获取这个标的的settle
                 if symbol not in infoDict:
                     continue
-                settle = infoDict[symbol].settle  # 获取结算价
+                settle = infoDict[symbol]["settle"]  # 获取结算价
                 summary_dict[symbol].afterDayUpdate(settle)
                 for pos in posList:
                     realTimeProfit = pos.afterDayUpdate(settle)
@@ -191,7 +189,7 @@ class CounterBehavior(TradeBehavior):
 
     @staticmethod
     def onTrade():
-        """"""
+        """处理所有成交的统一回调函数"""
 
     # openStock/closeStock/openFuture/closeFuture -> 均需要接onTrade回调函数
     @staticmethod
@@ -211,8 +209,7 @@ class CounterBehavior(TradeBehavior):
         pos = StockPosition(direction, symbol, price, vol,
                             min_timestamp, max_timestamp,
                             static_profit, static_loss,
-                            dynamic_profit, dynamic_loss
-                            )
+                            dynamic_profit, dynamic_loss)
         if direction == "long":
             if symbol not in context.stockLongPosition:  # 说明没有该股票多头的持仓
                 context.stockLongPosition[symbol] = []
@@ -263,16 +260,15 @@ class CounterBehavior(TradeBehavior):
         if symbol not in futureInfo:
             print(f"期货合约信息字典中不存在该期货合约:{symbol}")
             return
-        margin_rate = futureInfo[symbol].margin_rate # 保证金率
-        pre_settle = futureInfo[symbol].pre_settle  # 昨结算价
+        margin_rate = futureInfo[symbol]["margin_rate"] # 保证金率
+        pre_settle = futureInfo[symbol]["pre_settle"]  # 昨结算价
         context.cash -= vol * price * margin_rate
         context.stockCash -= vol * price * margin_rate
         pos = FuturePosition(direction, symbol, price, vol,
                              pre_settle, margin_rate,
                              min_timestamp, max_timestamp,
                              static_profit, static_loss,
-                             dynamic_profit, dynamic_loss
-                             )
+                             dynamic_profit, dynamic_loss)
         if direction == "long":
             if symbol not in context.futureLongPosition:  # 说明没有该期货多头的持仓
                 context.futureLongPosition[symbol] = []
@@ -535,20 +531,20 @@ class CounterBehavior(TradeBehavior):
             return
 
         dataDict = DataDict.get_instance()
-        day = context.current_date
-        minute = context.current_minute
-        timestamp = context.current_timestamp
+        day: pd.Timestamp = context.current_date
+        minute: pd.Timestamp = context.current_minute
+        timestamp: pd.Timestamp = context.current_timestamp
         if minute not in dataDict.stockKDict:
             return
-        barDict = dataDict.stockKDict[minute]
-        infoDict: Dict[str, StockInfo] = dataDict.stockInfoDict
+        barDict: Dict[str, Dict] = dataDict.stockKDict[minute]
+        infoDict: Dict[str, Dict] = dataDict.stockInfoDict
 
         for symbol in totalPos:
             info = infoDict[symbol]
             bar = barDict[symbol]
 
             # 基本信息
-            end_date = info.end_date
+            end_date = info["end_date"]
             high_price = bar["high"]
             low_price = bar["low"]
             close_price = bar["close"]
@@ -648,20 +644,20 @@ class CounterBehavior(TradeBehavior):
             return
 
         dataDict = DataDict.get_instance()
-        day = context.current_date
-        minute = context.current_minute
-        timestamp = context.current_timestamp
+        day: pd.Timestamp = context.current_date
+        minute: pd.Timestamp = context.current_minute
+        timestamp: pd.Timestamp = context.current_timestamp
         if minute not in dataDict.futureKDict:
             return
-        barDict = dataDict.futureKDict[minute]
-        infoDict: Dict[str, FutureInfo] = dataDict.futureInfoDict
+        barDict: Dict[str, Dict] = dataDict.futureKDict[minute]
+        infoDict: Dict[str, Dict] = dataDict.futureInfoDict
 
         for symbol in totalPos:
             info = infoDict[symbol]
             bar = barDict[symbol]
 
             # 基本信息
-            end_date = info.end_date
+            end_date = info["end_date"]
             high_price = bar["high"]
             low_price = bar["low"]
             close_price = bar["close"]

@@ -67,8 +67,8 @@ class StockPosition(Position):
         :return:
         """
         if self.time_monitor == 0:
-            min_date = pd.Timestamp(self.min_timestamp.date())
-            max_date = pd.Timestamp(self.max_timestamp.date())
+            min_date = pd.Timestamp(self.min_timestamp)
+            max_date = pd.Timestamp(self.max_timestamp)
             if min_date < current_date: # T+1
                 self.time_monitor = -2
             elif end_date > current_date > min_date and current_date < max_date:
@@ -205,8 +205,8 @@ class FuturePosition(Position):
         :return:
         """
         if self.time_monitor == 0:
-            min_date = pd.Timestamp(self.min_timestamp.date())
-            max_date = pd.Timestamp(self.max_timestamp.date())
+            min_date = pd.Timestamp(self.min_timestamp)
+            max_date = pd.Timestamp(self.max_timestamp)
             if min_date < current_date: # T+1
                 self.time_monitor = -2
             elif end_date > current_date > min_date and current_date < max_date:

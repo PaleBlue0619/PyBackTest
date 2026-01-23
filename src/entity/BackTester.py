@@ -1,4 +1,6 @@
 import os
+import time
+
 from src.entity.CounterBehavior import CounterBehavior
 from src.entity.Counter import Counter
 from src.entity.Context import Context
@@ -65,10 +67,11 @@ class BackTester(Counter, CounterBehavior):
         self.dataDict = DataDict.get_instance()
         self.UserContext["TradeDate"] = self.start_date
         self.UserContext["TradeTime"] = self.start_date
+        self.UserContext["NextDate"] = self.date_list[min(1, len(self.date_list)-1)]
 
         if "initialize" in self.eventCallbacks:
             initialize_func = self.eventCallbacks["initialize"]
-            initialize_func(self.UserContext)
+            initialize_func(self, self.UserContext)
 
     def beforeTrading(self):
         """
@@ -104,59 +107,77 @@ class BackTester(Counter, CounterBehavior):
         Step2. 提取其中的时间戳+排序 -> for loop进行回测
         """
         date_list = []
-        # 创建结果容器
-        stock_results = {"bar": None, "info": None}
-        future_results = {"bar": None, "info": None}
+        def process_stockBar():
+            """处理股票Bar"""
+            if stockBar is None:
+                return {}
+            t0 = time.time()
+            if self.config["freq"] == "minute":
+                stockBarDict = fromDataFrame(stockBar).toStockBars(True, "TradeDate", "symbol", "open", "high",
+                                                                   "low", "close", "volume", "TradeTime")
+            else:
+                stockBarDict = fromDataFrame(stockBar).toStockBars(False, "TradeDate", "symbol", "open", "high",
+                                                                   "low", "close", "volume", None)
+            t1 = time.time()
+            print(f"{self.name} process_stockBar time: {t1-t0}")
+            return stockBarDict
 
-        def process_stock():
-            """处理股票数据"""
-            if stockBar is not None:
-                if self.config["freq"] == "minute":
-                    stockBarDict = fromDataFrame(stockBar).toStockBars(
-                        True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime")
-                else:
-                    stockBarDict = fromDataFrame(stockBar).toStockBars(
-                        False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
-                stockInfoDict = fromDataFrame(stockInfo).toStockInfos(
-                    "TradeDate", "symbol", "open_price", "high_price", "low_price",
-                    "close_price", "start_date", "end_date")
-                return stockBarDict, stockInfoDict
-            return {}, {}
+        def process_stockInfo():
+            """处理股票Info"""
+            if stockInfo is None:
+                return {}
+            t0 = time.time()
+            stockInfoDict = fromDataFrame(stockInfo).toStockInfos("TradeDate", "symbol", "open_price", "high_price", "low_price",
+                                                               "close_price", "start_date", "end_date")
+            t1 = time.time()
+            print(f"{self.name} process_stockInfo time: {t1-t0}")
+            return stockInfoDict
 
-        def process_future():
-            """处理期货数据"""
-            if futureBar is not None:
-                if self.config["freq"] == "minute":
-                    futureBarDict = fromDataFrame(futureBar).toFutureBars(
-                        True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime"
-                    )
-                else:
-                    futureBarDict = fromDataFrame(futureBar).toFutureBars(
-                        False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None
-                    )
-                futureInfoDict = fromDataFrame(futureInfo).toFutureInfos(
+        def process_futureBar():
+            """处理期货Bar"""
+            if futureBar is None:
+                return {}
+            t0 = time.time()
+            if self.config["freq"] == "minute":
+                futureBarDict = fromDataFrame(futureBar).toFutureBars(True, "TradeDate", "symbol", "open", "high",
+                                                                      "low", "close", "volume", "TradeTime")
+            else:
+                futureBarDict = fromDataFrame(futureBar).toFutureBars(False, "TradeDate", "symbol", "open", "high",
+                                                                      "low", "close", "volume", None)
+            t1 = time.time()
+            print(f"{self.name} process_futureBar time: {t1-t0}")
+            return futureBarDict
+
+        def process_futureInfo():
+            """处理期货Info"""
+            if futureInfo is None:
+                return {}
+            t0 = time.time()
+            futureInfoDict = fromDataFrame(futureInfo).toFutureInfos(
                     "tradeDate", "symbol", "open_price", "high_price", "low_price",
                     "close_price", "pre_settle", "settle", "start_date", "end_date")
-                return futureBarDict, futureInfoDict
-            return {}, {}
+            t1 = time.time()
+            print(f"{self.name} process_futureInfo time: {t1-t0}")
+            return futureInfoDict
 
         # 并行执行
         with ThreadPoolExecutor(max_workers=2) as executor:
             # 提交任务
-            stock_future = executor.submit(process_stock) if stockBar is not None else None
-            future_future = executor.submit(process_future) if futureBar is not None else None
+            stockBarThread = executor.submit(process_stockBar) if stockBar is not None else None
+            stockInfoThread = executor.submit(process_stockInfo) if stockInfo is not None else None
+            futureBarThread = executor.submit(process_futureBar) if futureBar is not None else None
+            futureInfoThread = executor.submit(process_futureInfo) if futureInfo is not None else None
+
             # 等待结果
-            if stock_future:
-                stockBarDict, stockInfoDict = stock_future.result()
-                stock_results["bar"] = stockBarDict
-                stock_results["info"] = stockInfoDict
+            if self.SysContext.run_stock and stockInfoThread and stockBarThread:
+                stockInfoDict = stockInfoThread.result()
+                stockBarDict = stockBarThread.result()
                 date_list += list(stockBarDict.keys())
             else:
                 stockBarDict, stockInfoDict = {}, {}
-            if future_future:
-                futureBarDict, futureInfoDict = future_future.result()
-                future_results["bar"] = futureBarDict
-                future_results["info"] = futureInfoDict
+            if self.SysContext.run_future and futureInfoThread and futureBarThread:
+                futureInfoDict = futureInfoThread.result()
+                futureBarDict = futureBarThread.result()
                 date_list += list(futureBarDict.keys())
             else:
                 futureBarDict, futureInfoDict = {}, {}
@@ -168,6 +189,8 @@ class BackTester(Counter, CounterBehavior):
             self.SysContext.current_date = date
             self.UserContext["TradeDate"] = date
             self.UserContext["TradeTime"] = date
+            nextDateIdx = min(len(date_list)-1, i+1)
+            self.UserContext["NextDate"] = self.date_list[nextDateIdx]
 
             # 1.设置该日数据
             if self.SysContext.run_stock and date in stockBarDict:

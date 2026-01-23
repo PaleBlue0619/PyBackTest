@@ -168,6 +168,15 @@ class Counter(CounterBehavior):
             futureCounter.pop(order_id)
 
     @staticmethod
+    def getAvailableCash(assetType: str = None):
+        context = Context.get_instance()
+        if assetType == "stock":
+            return context.stockCash
+        if assetType == "future":
+            return context.futureCash
+        return context.cash
+
+    @staticmethod
     def getStockPosition(direction: str, symbol: List[str] = None) -> Dict[str, List[StockPosition]]:
         """
         :param direction: 股票持仓方向: long/short
@@ -225,7 +234,7 @@ class Counter(CounterBehavior):
                 return {s: context.stockLongSummary[s] for s in symbol if s in context.stockLongSummary}
         if direction == "short":
             if symbol is None:
-                return self.stockShortSummary
+                return context.stockShortSummary
             else:
                 return {s: context.stockShortSummary[s] for s in symbol if s in context.stockShortSummary}
 
@@ -245,6 +254,6 @@ class Counter(CounterBehavior):
                 return {s: context.futureLongSummary[s] for s in symbol if s in context.futureLongSummary}
         if direction == "short":
             if symbol is None:
-                return self.futureShortSummary
+                return context.futureShortSummary
             else:
                 return {s: context.futureShortSummary[s] for s in symbol if s in context.futureShortSummary}

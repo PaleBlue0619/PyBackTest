@@ -77,9 +77,8 @@ class Context:
         self.end_date = config["end_date"]
         self.cash = config["cash"]
         self.stockCash = config["stockCash"]
+        self.oriStockCash = self.stockCash
         self.futureCash = config["futureCash"]
-        # self.optionCash = config["optionCash"]
-        # self.seed = config["seed"]
+        self.oriFutureCash = self.futureCash
         self.run_stock = config["run_stock"]
         self.run_future = config["run_future"]
-        # self.run_option = config["run_option"]
