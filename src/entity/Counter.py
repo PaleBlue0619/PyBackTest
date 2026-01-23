@@ -1,7 +1,10 @@
 import pandas as pd
+from src.entity.pojo.Position import StockPosition,FuturePosition
+from src.entity.pojo.Summary import StockSummary,FutureSummary
 from src.entity.Context import Context
 from src.entity.DataDict import DataDict
 from src.entity.CounterBehavior import CounterBehavior
+from typing import List, Dict
 
 class Counter(CounterBehavior):
     def __init__(self):
@@ -163,3 +166,85 @@ class Counter(CounterBehavior):
         # 删除柜台已经完全成交的订单
         for order_id in delete_ids:
             futureCounter.pop(order_id)
+
+    @staticmethod
+    def getStockPosition(direction: str, symbol: List[str] = None) -> Dict[str, List[StockPosition]]:
+        """
+        :param direction: 股票持仓方向: long/short
+        :param symbol: 代码: 000001.SZ/ -> None表示所有持仓
+        :return:
+        """
+        # 获取当前配置实例
+        context = Context.get_instance()
+        if direction == "long":
+            if symbol is None:
+                return context.stockLongPosition
+            else:
+                return {s: context.stockLongPosition[s] for s in symbol if s in context.stockLongPosition}
+        if direction == "short":
+            if symbol is None:
+                return context.stockShortPosition
+            else:
+                return {s: context.stockShortPosition[s] for s in symbol if s in context.stockShortPosition}
+
+    @staticmethod
+    def getFuturePosition(direction: str, symbol: List[str] = None) -> Dict[str, List[FuturePosition]]:
+        """
+        :param direction: 期货持仓方向: long/short
+        :param symbol: 代码: A0001/ -> None表示所有持仓
+        :return:
+        """
+        # 获取当前配置实例
+        context = Context.get_instance()
+        if direction == "long":
+            if symbol is None:
+                return context.futureLongPosition
+            else:
+                if symbol in context.futureLongPosition:
+                    return context.futureLongPosition[symbol]
+        if direciton == "short":
+            if symbol is None:
+                return context.futureShortPosition
+            else:
+                if symbol in context.futureShortPosition:
+                    return context.futureShortPosition[symbol]
+
+    @staticmethod
+    def getStockSummary(direction: str, symbol: List = None) -> Dict[str, StockSummary]:
+        """
+        :param direction: 股票持仓方向: long/short
+        :param symbol: 代码: A0001/ -> None表示所有持仓
+        :return:
+        """
+        # 获取当前配置实例
+        context = Context.get_instance()
+        if direction == "long":
+            if symbol is None:
+                return context.stockLongSummary
+            else:
+                return {s: context.stockLongSummary[s] for s in symbol if s in context.stockLongSummary}
+        if direction == "short":
+            if symbol is None:
+                return self.stockShortSummary
+            else:
+                return {s: context.stockShortSummary[s] for s in symbol if s in context.stockShortSummary}
+
+    @staticmethod
+    def getFutureSummary(direction: str, symbol: List = None) -> Dict[str, FutureSummary]:
+        """
+        :param direction: 期货持仓方向: long/short
+        :param symbol: 代码: A0001/ -> None表示所有持仓
+        :return:
+        """
+        # 获取当前配置实例
+        context = Context.get_instance()
+        if direction == "long":
+            if symbol is None:
+                return context.futureLongSummary
+            else:
+                return {s: context.futureLongSummary[s] for s in symbol if s in context.futureLongSummary}
+        if direction == "short":
+            if symbol is None:
+                return self.futureShortSummary
+            else:
+                return {s: context.futureShortSummary[s] for s in symbol if s in context.futureShortSummary}

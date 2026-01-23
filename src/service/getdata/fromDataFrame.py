@@ -31,7 +31,7 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
             stockInfo[symbol] = StockInfo(tradeDate, symbol, open_price, high_price, low_price, close_price, start_date, end_date)
         return stockInfo
 
-    def toStockInfos(self, dateCol: str, symbolCol: str,
+    def toStockInfos_v0(self, dateCol: str, symbolCol: str,
                   openCol: str, highCol: str, lowCol: str, closeCol: str,
                   startDateCol: str = None, endDateCol: str = None) -> Dict[pd.Timestamp, Dict[str, StockInfo]]:
         """
@@ -64,6 +64,42 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
                 stockInfos[date_val] = result
         return stockInfos
 
+    def toStockInfos(self, dateCol: str, symbolCol: str,
+                     openCol: str, highCol: str, lowCol: str, closeCol: str,
+                     startDateCol: str = None, endDateCol: str = None) -> Dict[pd.Timestamp, Dict[str, StockInfo]]:
+        stockInfos = {}
+        # 确保日期列是datetime类型
+        if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
+            self.data[dateCol] = pd.to_datetime(self.data[dateCol])
+
+        # 使用groupby按日期分组，批量处理
+        grouped = self.data.groupby(dateCol)
+
+        for date_val, group in grouped:
+            date_key = pd.Timestamp(date_val)
+            stockInfos[date_key] = {}
+            for row in group.itertuples(index=False):
+                # 获取列值
+                symbol = getattr(row, symbolCol)
+                open_price = getattr(row, openCol)
+                high_price = getattr(row, highCol)
+                low_price = getattr(row, lowCol)
+                close_price = getattr(row, closeCol)
+
+                # 处理可选的列
+                if startDateCol and endDateCol:
+                    start_date = pd.Timestamp(getattr(row, startDateCol))
+                    end_date = pd.Timestamp(getattr(row, endDateCol))
+                else:
+                    # 如果没有提供，使用默认值
+                    start_date = pd.NaT
+                    end_date = pd.NaT
+                stockInfos[date_key][symbol] = StockInfo(
+                    date_key, symbol, open_price, high_price,
+                    low_price, close_price, start_date, end_date
+                )
+        return stockInfos
+
     def toFutureInfo(self, dateCol: str, symbolCol: str,
                      openCol: str, highCol: str, lowCol: str, closeCol: str,
                      preSettleCol: str,
@@ -91,7 +127,7 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
                  close_price, start_date, end_date)
         return futureInfo
 
-    def toFutureInfos(self, dateCol: str, symbolCol: str,
+    def toFutureInfos_v0(self, dateCol: str, symbolCol: str,
                  openCol: str, highCol: str, lowCol: str, closeCol: str,
                  preSettleCol: str, settleCol: str, startDateCol: str, endDateCol: str) -> Dict[pd.Timestamp, Dict[str, FutureInfo]]:
         """
@@ -124,6 +160,40 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
                 futureInfos[date_val] = result
         return futureInfos
 
+    def toFutureInfos(self, dateCol: str, symbolCol: str,
+                      openCol: str, highCol: str, lowCol: str, closeCol: str,
+                      preSettleCol: str, settleCol: str, startDateCol: str, endDateCol: str) -> Dict[pd.Timestamp, Dict[str, FutureInfo]]:
+        futureInfos = {}
+        # 确保日期列是datetime类型
+        if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
+            self.data[dateCol] = pd.to_datetime(self.data[dateCol])
+
+        # 使用groupby按日期分组
+        grouped = self.data.groupby(dateCol)
+
+        for date_val, group in grouped:
+            date_key = pd.Timestamp(date_val)
+            futureInfos[date_key] = {}
+            for row in group.itertuples(index=False):
+                symbol = getattr(row, symbolCol)
+                open_price = getattr(row, openCol)
+                high_price = getattr(row, highCol)
+                low_price = getattr(row, lowCol)
+                close_price = getattr(row, closeCol)
+                pre_settle = getattr(row, preSettleCol)
+                settle = getattr(row, settleCol)
+                start_date = pd.Timestamp(getattr(row, startDateCol))
+                end_date = pd.Timestamp(getattr(row, endDateCol))
+                margin_rate = 0.1
+
+                futureInfos[date_key][symbol] = FutureInfo(
+                    date_key, symbol, open_price, high_price, low_price,
+                    pre_settle, settle, margin_rate, close_price,
+                    start_date, end_date
+                )
+
+        return futureInfos
+
     def toStockBar(self, isMinBar: bool, dateCol:  str, symbolCol: str,
                   openCol: str, highCol: str, lowCol: str, closeCol: str,
                   volumeCol: str, minuteCol: str = None) -> Dict[pd.Timestamp, Dict[str, dict]]:
@@ -149,7 +219,7 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
             stockBar[tradeTime][symbol] = {"open": open_price, "high": high_price, "low": low_price, "close": close_price, "volume": volume}
         return stockBar
 
-    def toStockBars(self, isMinBar: bool, dateCol:  str, symbolCol: str,
+    def toStockBars_v0(self, isMinBar: bool, dateCol:  str, symbolCol: str,
                   openCol: str, highCol: str, lowCol: str, closeCol: str,
                   volumeCol: str, minuteCol: str = None) -> Dict[pd.Timestamp, Dict[pd.Timestamp, Dict[str, dict]]]:
         """
@@ -181,6 +251,55 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
                 stockBars[date_val] = result
         return stockBars
 
+    def toStockBars(self, isMinBar: bool, dateCol:  str, symbolCol: str,
+                    openCol: str, highCol: str, lowCol: str, closeCol: str,
+                    volumeCol: str, minuteCol: str = None) -> Dict[pd.Timestamp, Dict[pd.Timestamp, Dict[str, dict]]]:
+        stockBars = {}
+        # 确保日期列是datetime类型
+        if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
+            self.data[dateCol] = pd.to_datetime(self.data[dateCol])
+
+        # 创建时间列
+        if isMinBar and minuteCol:
+            # 确保分钟列是datetime类型
+            if not pd.api.types.is_datetime64_any_dtype(self.data[minuteCol]):
+                self.data[minuteCol] = pd.to_datetime(self.data[minuteCol])
+
+            # 按日期和分钟分组
+            grouped = self.data.groupby([dateCol, minuteCol])
+        else:
+            # 日频数据：创建统一的时间（15:00:00）
+            time_col = pd.to_datetime(self.data[dateCol].dt.strftime('%Y%m%d') + ' 15:00:00')
+            self.data['_time'] = time_col
+            grouped = self.data.groupby([dateCol, '_time'])
+
+        for (date_val, time_val), group in grouped:
+            date_key = pd.Timestamp(date_val)
+            time_key = pd.Timestamp(time_val)
+
+            if date_key not in stockBars:
+                stockBars[date_key] = {}
+
+            stockBars[date_key][time_key] = {}
+
+            # 批量处理组内的所有行
+            for symbol, open_price, high_price, low_price, close_price, volume in zip(
+                group[symbolCol], group[openCol], group[highCol],
+                group[lowCol], group[closeCol], group[volumeCol]
+            ):
+                stockBars[date_key][time_key][symbol] = {
+                    "open": float(open_price),
+                    "high": float(high_price),
+                    "low": float(low_price),
+                    "close": float(close_price),
+                    "volume": float(volume)
+                }
+
+        # 如果是日频数据，删除临时列
+        if not isMinBar and '_time' in self.data.columns:
+            del self.data['_time']
+
+        return stockBars
 
     def toFutureBar(self, isMinBar : bool, dateCol: str, symbolCol: str,
                   openCol: str, highCol: str, lowCol: str, closeCol: str,
@@ -217,7 +336,7 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
             futureBar[tradeTime][symbol] = {"open": open_price, "high": high_price, "low": low_price, "close": close_price, "volume": volume}
         return futureBar
 
-    def toFutureBars(self, isMinBar: bool, dateCol: str, symbolCol: str,
+    def toFutureBars_v0(self, isMinBar: bool, dateCol: str, symbolCol: str,
                 openCol: str, highCol: str, lowCol: str, closeCol: str,
                 volumeCol: str, minuteCol: str = None) -> Dict[pd.Timestamp, Dict[pd.Timestamp, Dict[str, dict]]]:
         """
@@ -249,3 +368,53 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
                 futureBars[date_val] = result
         return futureBars
 
+    def toFutureBars(self, isMinBar: bool, dateCol: str, symbolCol: str,
+                     openCol: str, highCol: str, lowCol: str, closeCol: str,
+                     volumeCol: str, minuteCol: str = None) -> Dict[pd.Timestamp, Dict[pd.Timestamp, Dict[str, dict]]]:
+        futureBars = {}
+
+        # 确保日期列是datetime类型
+        if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
+            self.data[dateCol] = pd.to_datetime(self.data[dateCol])
+
+        # 创建时间列
+        if isMinBar and minuteCol:
+            # 确保分钟列是datetime类型
+            if not pd.api.types.is_datetime64_any_dtype(self.data[minuteCol]):
+                self.data[minuteCol] = pd.to_datetime(self.data[minuteCol])
+
+            # 按日期和分钟分组
+            grouped = self.data.groupby([dateCol, minuteCol])
+        else:
+            # 日频数据：创建统一的时间（15:00:00）
+            time_col = pd.to_datetime(self.data[dateCol].dt.strftime('%Y%m%d') + ' 15:00:00')
+            self.data['_time'] = time_col
+            grouped = self.data.groupby([dateCol, '_time'])
+
+        for (date_val, time_val), group in grouped:
+            date_key = pd.Timestamp(date_val)
+            time_key = pd.Timestamp(time_val)
+
+            if date_key not in futureBars:
+                futureBars[date_key] = {}
+
+            futureBars[date_key][time_key] = {}
+
+            # 批量处理组内的所有行
+            for symbol, open_price, high_price, low_price, close_price, volume in zip(
+                group[symbolCol], group[openCol], group[highCol],
+                group[lowCol], group[closeCol], group[volumeCol]
+            ):
+                futureBars[date_key][time_key][symbol] = {
+                    "open": float(open_price),
+                    "high": float(high_price),
+                    "low": float(low_price),
+                    "close": float(close_price),
+                    "volume": float(volume)
+                }
+
+        # 如果是日频数据，删除临时列
+        if not isMinBar and '_time' in self.data.columns:
+            del self.data['_time']
+
+        return futureBars

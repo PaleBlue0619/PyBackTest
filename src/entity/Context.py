@@ -31,10 +31,6 @@ class Context:
             self.freq = None
             self.run_stock = False
             self.run_future = False
-            self.stockBarPath = None
-            self.futureBarPath = None
-            self.stockInfoPath = None
-            self.futureInfoPath = None
 
             # 框架维护的属性
             self.current_date = None
@@ -82,10 +78,6 @@ class Context:
         self.cash = config["cash"]
         self.stockCash = config["stockCash"]
         self.futureCash = config["futureCash"]
-        self.stockBarPath = config["stockBarPath"]
-        self.stockInfoPath = config["stockInfoPath"]
-        self.futureBarPath = config["futureBarPath"]
-        self.futureInfoPath = config["futureInfoPath"]
         # self.optionCash = config["optionCash"]
         # self.seed = config["seed"]
         self.run_stock = config["run_stock"]

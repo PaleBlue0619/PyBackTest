@@ -7,6 +7,7 @@ from src.service.getdata.fromDataFrame import fromDataFrame
 from typing import Callable, List, Dict
 import dolphindb as ddb # 使用其交易日历功能
 import pandas as pd # 使用其时间戳
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 """
 策略封装模块:
@@ -15,13 +16,8 @@ config:Dict[str, any]
 "context":Dict[str,any]:行情上下文字典
 "startDate":str:开始日期
 "endDate":str:结束日期
-"hasStock": bool: 策略中是否包含股票
-"hasFuture": bool: 策略中是否包含期货
-"stockBarPath": str
-"stockInfoPath": str
-"futureBarPath": str
-"futureInfoPath": str
-
+"runStock": bool: 策略中是否包含股票
+"runFuture": bool: 策略中是否包含期货
 eventCallbacks:Dict[str, callable]
 
 initialize(mutable context): 策略初始化回调函数
@@ -40,6 +36,7 @@ finalize(mutable context): 策略结束回调函数
 """
 回测引擎类 —> 思路借鉴DolphinDB Backtest 回测插件
 https://docs.dolphindb.cn/zh/plugins/backtest/interface_description.html
+本质为了用户层友好: 用户层 -> BackTester <- 开发层(Counter) <- 底层逻辑(CounterBehavior)
 """
 class BackTester(Counter, CounterBehavior):
     def __init__(self, name:str, config:Dict[str, any], eventCallbacks:Dict[str, Callable], session:ddb.session):
@@ -56,16 +53,18 @@ class BackTester(Counter, CounterBehavior):
         endDate = {pd.Timestamp(self.end_date).strftime("%Y.%m.%d")}
         table(getMarketCalendar("CFFEX",startDate,endDate) as `tradeDay)
         """)["tradeDay"].tolist()
-        self.initialize(self.UserContext)   # 创建回测引擎的时候进行初始化
+        self.initialize()   # 创建回测引擎的时候进行初始化
 
-    def initialize(self, contextDict):
+    def initialize(self):
         """
-        先执行系统的初始化 -> 再执行用户的初始化函数
+        用户的初始化函数调用
         """
         # 系统的初始化 -> 构建context上下文
         self.SysContext = Context.get_instance()
         self.SysContext.initialize_from_config(config=self.config)  # 从用户传入的配置中初始化
         self.dataDict = DataDict.get_instance()
+        self.UserContext["TradeDate"] = self.start_date
+        self.UserContext["TradeTime"] = self.start_date
 
         if "initialize" in self.eventCallbacks:
             initialize_func = self.eventCallbacks["initialize"]
@@ -73,91 +72,151 @@ class BackTester(Counter, CounterBehavior):
 
     def beforeTrading(self):
         """
-        先执行系统的beforeTrading -> 再执行用户的beforeTrading
+        用户级别的beforeTrading调用
         """
         if "beforeTrading" in self.eventCallbacks:
             beforeTrading_func = self.eventCallbacks["beforeTrading"]
-            beforeTrading_func(self.UserContext)
+            beforeTrading_func(self, self.UserContext)
 
-    def onBar(self, contextDict):
+    def onBar(self, barDict: Dict[str, any]):
         """
-        先执行系统的onBar -> 再执行用户的onBar
+        用户级别的onBar调用
         """
         if "onBar" in self.eventCallbacks:
             onBar_func = self.eventCallbacks["onBar"]
-            onBar_func(self, self.UserContext)
+            onBar_func(self, self.UserContext, barDict)
 
     def afterTrading(self):
         """
-        先执行系统的afterTrading -> 再执行用户的afterTrading
+        用户的afterTrading调用
         """
         if "afterTrading" in self.eventCallbacks:
             afterTrading_func = self.eventCallbacks["afterTrading"]
-            afterTrading_func(self.UserContext)
+            afterTrading_func(self, self.UserContext)
 
-    def append(self, dataType: str, barData: pd.DataFrame, infoData: pd.DataFrame):
+    def append(self, stockBar: pd.DataFrame = None, stockInfo: pd.DataFrame = None,
+               futureBar: pd.DataFrame = None, futureInfo: pd.DataFrame = None):
         """
         由于技术能力有限 -> 这里默认回测到最大时间戳 -> 且以天为单位注入
-        :param dataType: stock/future -> 股票数据 | 期货数据
         :param barData: 区间的Bar数据
         :param infoData: 区间的信息数据
-        :return:
+        Step1. 转换为BarDict & InfoDict
+        Step2. 提取其中的时间戳+排序 -> for loop进行回测
         """
-        if dataType == "stock":
-            if self.config["freq"] == "minute": # 分钟频数据
-                stockBarDict = fromDataFrame(barData).toStockBars(True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime")
-            else:
-                stockBarDict = fromDataFrame(barData).toStockBars(False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
-            stockInfoDict = fromDataFrame(infoData).toStockInfo("TradeDate", "symbol", "open_price", "high_price", "low_price", "close_price", "start_date", "end_date")
-        else:
-            if self.config["freq"] == "minute": # 分钟频数据
-                futureBarDict = fromDataFrame(barData).toFutureBars(True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime")
-            else:
-                futureBarDict = fromDataFrame(barData).toFutureBars(False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
-            futureInfoDict = fromDataFrame(infoData).toFutureInfo("tradeDate", "symbol", "open_price", "high_price", "low_price", "close_price", "pre_settle", "settle", "start_date", "end_date")
-        # 获取当前的时间戳 -> 即上一次回测的时间戳
+        date_list = []
+        # 创建结果容器
+        stock_results = {"bar": None, "info": None}
+        future_results = {"bar": None, "info": None}
 
+        def process_stock():
+            """处理股票数据"""
+            if stockBar is not None:
+                if self.config["freq"] == "minute":
+                    stockBarDict = fromDataFrame(stockBar).toStockBars(
+                        True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime")
+                else:
+                    stockBarDict = fromDataFrame(stockBar).toStockBars(
+                        False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
+                stockInfoDict = fromDataFrame(stockInfo).toStockInfos(
+                    "TradeDate", "symbol", "open_price", "high_price", "low_price",
+                    "close_price", "start_date", "end_date")
+                return stockBarDict, stockInfoDict
+            return {}, {}
 
-    # def run(self):
-    #     """
-    #     核心策略执行函数
-    #     """
-    #     # Step1. 初始化
-    #     self.initialize(self.config["context"])
-    #
-    #     # Step2.根据时间戳for loop
-    #     for i in tqdm(range(0, len(self.date_list))):
-    #         self.SysContext.current_date = self.date_list[i]
-    #         # Step2.1 获取该日数据 -> 设置数据
-    #         if self.SysContext.run_stock:   # 需要设置股票的数据
-    #             barPath = os.path.join(self.SysContext.stockBarPath, self.SysContext.current_date.strftime("%Y%m%d") + ".pqt")
-    #             infoPath = os.path.join(self.SysContext.stockInfoPath, self.SysContext.current_date.strftime("%Y%m%d") + ".pqt")
-    #             if not os.path.exists(barPath) or not os.path.exists(infoPath):
-    #                 continue
-    #             stockBarDict = fromDataFrame(pd.read_parquet(barPath)).toStockBar(False, "TradeDate", "symbol", "open", "high", "low",
-    #                                                            "close", "volume", None)
-    #             stockInfoDict = fromDataFrame(pd.read_parquet(infoPath)).toStockInfo("TradeDate", "symbol", "open_price", "high_price",
-    #                                                               "low_price", "close_price", "start_date", "end_date")
-    #             self.dataDict.set_stockKDict(stockBarDict)
-    #             self.dataDict.set_stockInfoDict(stockInfoDict)
-    #
-    #         if self.SysContext.run_future: # 需要设置期货的数据
-    #             barPath = os.path.join(self.SysContext.futureBarPath, self.SysContext.current_date.strftime("%Y%m%d") + ".pqt")
-    #             infoPath = os.path.join(self.SysContext.futureInfoPath, self.SysContext.current_date.strftime("%Y%m%d") + ".pqt")
-    #             if not os.path.exists(barPath) or not os.path.exists(infoPath):
-    #                 continue
-    #             futureBarDict = fromDataFrame(pd.read_parquet(barPath)).toFutureBar(False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None)
-    #             futureInfoDict = fromDataFrame(pd.read_parquet(infoPath)).toFutureInfo("tradeDate", "symbol", "open_price", "high_price", "low_price", "close_price",
-    #                                                                 "pre_settle", "settle", "start_date", "end_date")
-    #             self.dataDict.set_futureKDict(futureBarDict)
-    #             self.dataDict.set_futureInfoDict(futureInfoDict)
-    #
-    #         # Step2.2 执行系统级别beforeTrading回调 -> 用户级别beforeTrading回调
-    #         if self.SysContext.run_future:
-    #             self.beforeDayFuture()
-    #         self.beforeTrading()
-    #
-    #         # Step2.3 执行用户级别onBar回调[核心]
-    #         self.onBar(self.UserContext)
-    #
-    #         # Step2.4 执行
+        def process_future():
+            """处理期货数据"""
+            if futureBar is not None:
+                if self.config["freq"] == "minute":
+                    futureBarDict = fromDataFrame(futureBar).toFutureBars(
+                        True, "TradeDate", "symbol", "open", "high", "low", "close", "volume", "TradeTime"
+                    )
+                else:
+                    futureBarDict = fromDataFrame(futureBar).toFutureBars(
+                        False, "TradeDate", "symbol", "open", "high", "low", "close", "volume", None
+                    )
+                futureInfoDict = fromDataFrame(futureInfo).toFutureInfos(
+                    "tradeDate", "symbol", "open_price", "high_price", "low_price",
+                    "close_price", "pre_settle", "settle", "start_date", "end_date")
+                return futureBarDict, futureInfoDict
+            return {}, {}
+
+        # 并行执行
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # 提交任务
+            stock_future = executor.submit(process_stock) if stockBar is not None else None
+            future_future = executor.submit(process_future) if futureBar is not None else None
+            # 等待结果
+            if stock_future:
+                stockBarDict, stockInfoDict = stock_future.result()
+                stock_results["bar"] = stockBarDict
+                stock_results["info"] = stockInfoDict
+                date_list += list(stockBarDict.keys())
+            else:
+                stockBarDict, stockInfoDict = {}, {}
+            if future_future:
+                futureBarDict, futureInfoDict = future_future.result()
+                future_results["bar"] = futureBarDict
+                future_results["info"] = futureInfoDict
+                date_list += list(futureBarDict.keys())
+            else:
+                futureBarDict, futureInfoDict = {}, {}
+
+        date_list = sorted(set(date_list))
+        for i in range(0, len(date_list)):
+            date = date_list[i]
+            # 0.更新相关属性 -> 包括用户级别Context中的属性
+            self.SysContext.current_date = date
+            self.UserContext["TradeDate"] = date
+            self.UserContext["TradeTime"] = date
+
+            # 1.设置该日数据
+            if self.SysContext.run_stock and date in stockBarDict:
+                self.dataDict.set_stockKDict(stockBarDict[date])
+                self.dataDict.set_stockInfoDict(stockInfoDict[date])
+            if self.SysContext.run_future and date in futureBarDict:
+                self.dataDict.set_futureKDict(futureBarDict[date])
+                self.dataDict.set_futureInfoDict(futureInfoDict[date])
+
+            # 2.执行系统级别beforeTrading回调 -> 用户级别beforeTrading回调
+            if self.SysContext.run_future:
+                self.beforeDayFuture()
+            self.beforeTrading()
+
+            # 3.执行分钟频回测
+            minute_list = []
+            if date in stockBarDict:
+                minute_list += list(stockBarDict[date].keys())
+            if date in futureBarDict:
+                minute_list += list(futureBarDict[date].keys())
+            minute_list = sorted(set(minute_list))
+
+            for minute in minute_list:
+                # 设置时间格式
+                self.SysContext.current_minute = minute
+                self.SysContext.current_timestamp = minute
+                self.UserContext["TradeTime"] = minute
+
+                # 3. 执行用户级别onBar回调[核心]
+                barDict = dict() # 需要传入onBar的参数
+                if date in stockBarDict and minute in stockBarDict[date]:
+                    barDict.update(stockBarDict[date][minute])
+                if date in futureBarDict and minute in futureBarDict[date]:
+                    barDict.update(futureBarDict[date][minute])
+                self.onBar(barDict)
+                if self.SysContext.run_stock:
+                    self.processStockOrder(1.0, 1.0)
+                    self.monitorStockPosition("long", True)
+                    self.monitorStockPosition("short", True)
+                    self.afterBarStock()
+                if self.SysContext.run_future:
+                    self.processFutureOrder(1.0, 1.0)
+                    Counter.monitorFuturePosition("long", True)
+                    Counter.monitorFuturePosition("short", True)
+                    Counter.afterBarFuture()
+
+            # 4.执行用户级别afterTrading回调 -> 系统级别afterTrading回调
+            self.afterTrading()
+            if self.SysContext.run_stock:
+                self.afterDayStock()
+            if self.SysContext.run_future:
+                self.afterDayFuture()
