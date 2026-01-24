@@ -5,6 +5,8 @@ from src.entity.TradeBehavior import TradeBehavior
 from src.entity.pojo.Order import *
 from src.entity.pojo.Position import *
 from src.entity.pojo.Summary import *
+from src.entity.pojo.Statistics import Statistics
+from src.entity.pojo.TradeDetails import TradeDetails
 from typing import Dict, List, Tuple
 
 class CounterBehavior(TradeBehavior):
@@ -188,8 +190,21 @@ class CounterBehavior(TradeBehavior):
                     context.futureSettleProfit += settleProfit
 
     @staticmethod
+    def afterBarStats():
+        #TODO: """分钟频统计"""
+        return
+
+    @staticmethod
+    def afterDayStats():
+        """日频统计"""
+        context = Context.get_instance()
+        statistics = Statistics.get_instance()
+        statistics.update_from_context(context)
+
+    @staticmethod
     def onTrade():
-        """处理所有成交的统一回调函数"""
+        #TODO: """处理所有成交的统一回调函数"""
+        return
 
     # openStock/closeStock/openFuture/closeFuture -> 均需要接onTrade回调函数
     @staticmethod
@@ -202,6 +217,8 @@ class CounterBehavior(TradeBehavior):
         股票开仓/加仓
         """
         context = Context.get_instance()
+        tradeDetails = TradeDetails.get_instance()
+        tradeNum = context.get_nextTradeNum()
         context.cash -= vol * price
         context.stockCash -= vol * price
 
@@ -240,7 +257,10 @@ class CounterBehavior(TradeBehavior):
             else:
                 context.stockShortSummary[symbol].openUpdate(price, vol, static_profit, static_loss,
                                                              dynamic_profit, dynamic_loss)
-        # TODO: 记录
+        # 成交记录
+        tradeDetails.stockRecord[tradeNum] = {"TradeTime":context.current_timestamp,
+                                  "state": "open", "direction": direction,
+                                  "symbol":symbol, "price": price, "vol": vol, "reason": reason}
 
     @staticmethod
     def openFuture(direction: str, symbol: str, vol: int, price: float,
@@ -254,6 +274,8 @@ class CounterBehavior(TradeBehavior):
 
         # 获取回测上下文实例
         context = Context.get_instance()
+        tradeDetails = TradeDetails.get_instance()
+        tradeNum = context.get_nextTradeNum()
         dataDict = DataDict.get_instance()
         futureInfo = dataDict.futureInfoDict
 
@@ -299,7 +321,10 @@ class CounterBehavior(TradeBehavior):
             else:
                 context.futureShortSummary[symbol].openUpdate(price, vol, static_profit, static_loss,
                                                                 dynamic_profit, dynamic_loss)
-        # TODO: 记录
+        # 成交记录
+        tradeDetails.futureRecord[tradeNum] = {"TradeTime":context.current_timestamp,
+                                  "state": "open", "direction": direction,
+                                  "symbol":symbol, "price": price, "vol": vol, "reason": reason}
 
     @staticmethod
     def closeStock(direction: str, symbol: str, price: float, vol: int,
@@ -311,6 +336,8 @@ class CounterBehavior(TradeBehavior):
         profitDiff = 0.0  # 相对于上一个K线的额外盈亏 -> 计入realTimeProfit
         margin = 0.0
         context = Context.get_instance()
+        tradeDetails = TradeDetails.get_instance()
+        tradeNum = context.get_nextTradeNum()
         if direction == "long":
             if symbol not in context.stockLongPosition:
                 print(f"没有该股票多头的持仓:{symbol}")
@@ -389,7 +416,10 @@ class CounterBehavior(TradeBehavior):
         context.stockProfit += profit
         context.realTimeProfit += profitDiff
         context.stockRealTimeProfit += profitDiff
-        # TODO: Record
+        # 成交记录
+        tradeDetails.stockRecord[tradeNum] = {"TradeTime":context.current_timestamp,
+                                  "state": "close", "direction": direction,
+                                  "symbol":symbol, "price": price, "vol": record_vol, "reason": reason}
 
     @staticmethod
     def closeFuture(direction: str, symbol: str, price: float, vol: int, reason: str):
@@ -401,6 +431,8 @@ class CounterBehavior(TradeBehavior):
         profitDiff = 0.0  # 相对于上一个K线的额外盈亏 -> 计入realTimeProfit
         margin = 0.0
         context = Context.get_instance()
+        tradeDetails = TradeDetails.get_instance()
+        tradeNum = context.get_nextTradeNum()
         if direction == "long":
             if symbol not in context.futureLongPosition:
                 print(f"没有该期货多头的持仓:{symbol}")
@@ -510,7 +542,10 @@ class CounterBehavior(TradeBehavior):
         context.futureSettleProfit += settleProfit
         context.realTimeProfit += profitDiff
         context.futureRealTimeProfit += profitDiff
-        # TODO: Record
+        # 成交记录
+        tradeDetails.futureRecord[tradeNum] = {"TradeTime":context.current_timestamp,
+                                  "state": "close", "direction": direction,
+                                  "symbol":symbol, "price": price, "vol": record_vol, "reason": reason}
 
     @staticmethod
     def monitorStockPosition(direction: str, sequence: bool):

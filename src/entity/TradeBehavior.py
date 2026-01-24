@@ -1,6 +1,7 @@
 import pandas as pd
 from src.entity.pojo.Order import *
 from src.entity.Context import Context
+from src.entity.pojo.OrderDetails import OrderDetails
 
 class TradeBehavior:
     @staticmethod
@@ -12,6 +13,7 @@ class TradeBehavior:
                        commission: float, reason: float, partial_order: bool):
         # 获取配置实例
         context = Context.get_instance()
+        orderDetail = OrderDetails.get_instance()
         orderNum = context.get_nextOrderNum()   # 获取自增订单编号
 
         min_timestamp = config.start_date if not min_timestamp else min_timestamp
@@ -30,7 +32,16 @@ class TradeBehavior:
         )
         # 将订单添加到柜台
         context.stockCounter[orderNum] = order
-        # TODO: 添加到记录中
+        # 将订单添加到记录中
+        orderDetail.stockRecord[orderNum] = {
+            "direction": direction,
+            "state": "open",
+            "symbol": symbol,
+            "vol": vol,
+            "price": price,
+            "create_timestamp": context.current_timestamp,
+            "reason": reason
+        }
 
     @staticmethod
     def orderCloseStock(direction: str, symbol: str, vol: int, price: float,
@@ -39,6 +50,7 @@ class TradeBehavior:
         # 获取配置实例
         context = Context.get_instance()
         orderNum = context.get_nextOrderNum()
+        orderDetail = OrderDetails.get_instance()
 
         min_order_timestamp = context.start_date if not min_order_timestamp else min_order_timestamp
         max_order_timestamp = context.end_date if not max_order_timestamp else max_order_timestamp
@@ -56,8 +68,16 @@ class TradeBehavior:
         )
         # 将订单添加到柜台
         context.stockCounter[orderNum] = order
-        # TODO: 添加到记录中
-
+        # 将订单添加到记录中
+        orderDetail.stockRecord[orderNum] = {
+            "direction": direction,
+            "state": "close",
+            "symbol": symbol,
+            "vol": vol,
+            "price": price,
+            "create_timestamp": context.current_timestamp,
+            "reason": reason
+        }
 
     @staticmethod
     def orderOpenFuture(direction: str, symbol: str, vol: int, price: float,
@@ -70,6 +90,7 @@ class TradeBehavior:
         # 获取配置实例
         context = Context.get_instance()
         orderNum = context.get_nextOrderNum()
+        orderDetail = OrderDetails.get_instance()
 
         min_timestamp = config.start_date if not min_timestamp else min_timestamp
         max_timestamp = config.end_date if not max_timestamp else max_timestamp
@@ -87,7 +108,16 @@ class TradeBehavior:
                                )
         # 将订单添加到柜台
         context.futureCounter[orderNum] = order
-        # TODO: 添加到记录中
+        # 将订单添加到记录中
+        orderDetail.futureRecord[orderNum] = {
+            "direction": direction,
+            "state": "open",
+            "symbol": symbol,
+            "vol": vol,
+            "price": price,
+            "create_timestamp": context.current_timestamp,
+            "reason": reason
+        }
 
     @staticmethod
     def orderCloseFuture(direction: str, symbol: str, vol: int, price: float,
@@ -96,6 +126,7 @@ class TradeBehavior:
         # 获取配置实例
         context = Context.get_instance()
         orderNum = context.get_nextOrderNum()
+        orderDetail = OrderDetails.get_instance()
 
         min_order_timestamp = context.start_date if not min_order_timestamp else min_order_timestamp
         max_order_timestamp = context.end_date if not max_order_timestamp else max_order_timestamp
@@ -113,4 +144,13 @@ class TradeBehavior:
         )
         # 将订单添加到柜台
         context.futureCounter[orderNum] = order
-        # TODO: 添加到记录中
+        # 将订单添加到记录中
+        orderDetail.futureRecord[orderNum] = {
+            "direction": direction,
+            "state": "close",
+            "symbol": symbol,
+            "vol": vol,
+            "price": price,
+            "create_timestamp": context.current_timestamp,
+            "reason": reason
+        }

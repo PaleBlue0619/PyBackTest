@@ -243,3 +243,5 @@ class BackTester(Counter, CounterBehavior):
                 self.afterDayStock()
             if self.SysContext.run_future:
                 self.afterDayFuture()
+            # 5.统计今日盈亏
+            self.afterDayStats()

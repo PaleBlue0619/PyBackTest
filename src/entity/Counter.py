@@ -4,6 +4,9 @@ from src.entity.pojo.Summary import StockSummary,FutureSummary
 from src.entity.Context import Context
 from src.entity.DataDict import DataDict
 from src.entity.CounterBehavior import CounterBehavior
+from src.entity.pojo.Statistics import Statistics
+from src.entity.pojo.TradeDetails import TradeDetails
+from src.entity.pojo.OrderDetails import OrderDetails
 from typing import List, Dict
 
 class Counter(CounterBehavior):
@@ -168,13 +171,91 @@ class Counter(CounterBehavior):
             futureCounter.pop(order_id)
 
     @staticmethod
-    def getAvailableCash(assetType: str = None):
+    def getAvailableCash(assetType: str = None) -> float:
         context = Context.get_instance()
         if assetType == "stock":
             return context.stockCash
         if assetType == "future":
             return context.futureCash
         return context.cash
+
+    @staticmethod
+    def getTradeStatistics(statsType: str):
+        """
+        :param statsType: Optional {"cash","stockCash","futureCash",
+                                    "profit","stockProfit","futureProfit"
+                                    "realTimeProfit","stockRealTimeProfit","futureRealTimeProfit"
+                                    }
+        :return: 统计指标
+        """
+        # 获取统计实例对象
+        statistics = Statistics.get_instance()
+        if statsType == "cash":
+            return statistics.cashDict
+        if statsType == "stockCash":
+            return statistics.stockCashDict
+        if statsType == "futureCash":
+            return statistics.futureCashDict
+        if statsType == "profit":
+            return statistics.profitDict
+        if statsType == "stockProfit":
+            return statistics.stockProfitDict
+        if statsType == "futureProfit":
+            return statistics.futureProfitDict
+        if statsType == "realTimeProfit":
+            return statistics.realTimeProfitDict
+        if statsType == "stockRealTimeProfit":
+            return statistics.stockRealTimeProfitDict
+        if statsType == "futureRealTimeProfit":
+            return statistics.futureRealTimeProfitDict
+        return pd.DataFrame(
+            {
+                "TradeDate": statistics.cashDict.keys(),
+                "cash": statistics.cashDict.values(),
+                "stockCash": statistics.stockCashDict.values(),
+                "futureCash": statistics.futureCashDict.values(),
+                "profit": statistics.profitDict.values(),
+                "stockProfit": statistics.stockProfitDict.values(),
+                "futureProfit": statistics.futureProfitDict.values(),
+                "realTimeProfit": statistics.realTimeProfitDict.values(),
+                "stockRealTimeProfit": statistics.stockRealTimeProfitDict.values(),
+                "futureRealTimeProfit": statistics.futureRealTimeProfitDict.values()
+            }
+        )
+
+    @staticmethod
+    def getOrderDetails(assetType: str) -> pd.DataFrame:
+        """
+        返回DataFrame -> orderNum为第一列
+        :param assetType:
+        :return:
+        """
+        # 获取当前实例
+        orderDetails = OrderDetails.get_instance()
+        if assetType == "stock":
+            df = pd.DataFrame.from_dict(orderDetails.stockRecord, orient='index')
+        elif assetType == "future":
+            df = pd.DataFrame.from_dict(orderDetails.futureRecord, orient='index')
+        df.insert(0, 'orderNum', df.index)
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    @staticmethod
+    def getTradeDetails(assetType: str) -> pd.DataFrame:
+        """
+        返回DataFrame -> tradeNum为第一列
+        :param assetType:
+        :return:
+        """
+        # 获取当前实例
+        tradeDetails = TradeDetails.get_instance()
+        if assetType == "stock":
+            df = pd.DataFrame.from_dict(tradeDetails.stockRecord, orient='index')
+        elif assetType == "future":
+            df = pd.DataFrame.from_dict(tradeDetails.futureRecord, orient='index')
+        df.insert(0, 'tradeNum', df.index)
+        df.reset_index(drop=True, inplace=True)
+        return df
 
     @staticmethod
     def getStockPosition(direction: str, symbol: List[str] = None) -> Dict[str, List[StockPosition]]:
@@ -219,7 +300,7 @@ class Counter(CounterBehavior):
                     return context.futureShortPosition[symbol]
 
     @staticmethod
-    def getStockSummary(direction: str, symbol: List = None) -> Dict[str, StockSummary]:
+    def getStockSummary(direction: str, symbol: List[str] = None) -> Dict[str, StockSummary]:
         """
         :param direction: 股票持仓方向: long/short
         :param symbol: 代码: A0001/ -> None表示所有持仓
@@ -239,7 +320,7 @@ class Counter(CounterBehavior):
                 return {s: context.stockShortSummary[s] for s in symbol if s in context.stockShortSummary}
 
     @staticmethod
-    def getFutureSummary(direction: str, symbol: List = None) -> Dict[str, FutureSummary]:
+    def getFutureSummary(direction: str, symbol: List[str] = None) -> Dict[str, FutureSummary]:
         """
         :param direction: 期货持仓方向: long/short
         :param symbol: 代码: A0001/ -> None表示所有持仓

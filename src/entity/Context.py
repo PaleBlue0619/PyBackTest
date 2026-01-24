@@ -10,6 +10,7 @@ class Context:
     _instance = None
     _initialized = False
     _order_num = 0
+    _trade_num = 0
     _lock = threading.Lock()
 
     def __new__(cls):
@@ -70,6 +71,12 @@ class Context:
         with self._lock:
             self._order_num += 1
             return self._order_num
+
+    def get_nextTradeNum(self) -> int:
+        """获取全局唯一的自增成交编号"""
+        with self._lock:
+            self._trade_num += 1
+            return self._trade_num
 
     def initialize_from_config(self, config: dict):
         """从配置数据初始化"""
