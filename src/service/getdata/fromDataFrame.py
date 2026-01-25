@@ -11,8 +11,8 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
         self.dataCols = data.columns.tolist()
 
     def toStockInfo(self, symbolCol: str,
-                  openCol: str, highCol: str, lowCol: str, closeCol: str,
-                  startDateCol: str, endDateCol: str) -> Dict[str, dict]:
+                  openCol: str, highCol: str,
+                  lowCol: str, closeCol: str) -> Dict[str, dict]:
         """
         单个交易日的转换
         stockInfo: InfoDict<String, StockInfo>
@@ -24,37 +24,28 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
             high_price = row[highCol]
             low_price = row[lowCol]
             close_price = row[closeCol]
-            start_date = pd.Timestamp(row[startDateCol])
-            end_date = pd.Timestamp(row[endDateCol])
             stockInfo[symbol] = {"open_price": open_price, "high_price": high_price,
-                                 "low_price": low_price, "close_price": close_price,
-                                 "start_date": start_date, "end_date": end_date}
+                                 "low_price": low_price, "close_price": close_price}
         return stockInfo
 
     def toStockInfos(self, dateCol: str, symbolCol: str,
-                     openCol: str, highCol: str, lowCol: str, closeCol: str,
-                     startDateCol: str, endDateCol: str) -> Dict[pd.Timestamp, Dict[str, dict]]:
+                     openCol: str, highCol: str,
+                     lowCol: str, closeCol: str) -> Dict[pd.Timestamp, Dict[str, dict]]:
         stockInfos = {}
         # 确保日期列是datetime类型
         if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
             self.data[dateCol] = pd.to_datetime(self.data[dateCol])
-        if not pd.api.types.is_datetime64_any_dtype(self.data[startDateCol]):
-            self.data[startDateCol] = pd.to_datetime(self.data[startDateCol])
-        if not pd.api.types.is_datetime64_any_dtype(self.data[endDateCol]):
-            self.data[endDateCol] = pd.to_datetime(self.data[endDateCol])
         # 使用groupby按日期分组，批量处理
         grouped = self.data.groupby(dateCol)
 
         for date_val, group in grouped:
             tradeDate = pd.Timestamp(date_val)
             stockInfos[tradeDate] = {}
-            for symbol, open_price, high_price, low_price, close_price, start_date, end_date in zip(
-                    group[symbolCol], group[openCol], group[highCol], group[lowCol], group[closeCol],
-                    group[startDateCol], group[endDateCol]):
+            for symbol, open_price, high_price, low_price, close_price in zip(
+                    group[symbolCol], group[openCol], group[highCol], group[lowCol], group[closeCol]):
                 stockInfos[tradeDate][symbol] = {
-                    "open_price": open_price,
-                    "high_price": high_price, "low_price": low_price, "close_price": close_price,
-                    "start_date": start_date, "end_date": end_date
+                    "open_price": open_price, "high_price": high_price,
+                    "low_price": low_price, "close_price": close_price
                 }
         return stockInfos
 

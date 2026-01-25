@@ -57,7 +57,6 @@ class Context:
             self.stockShortSummary: Dict[str, StockSummary] = {}    # 股票空仓视图
             self.futureLongSummary: Dict[str, FutureSummary] = {}    # 期货多仓视图
             self.futureShortSummary: Dict[str, FutureSummary] = {}   # 期货空仓视图
-            # TODO: 记录类成员变量维护
 
     @classmethod
     def get_instance(cls) -> 'Context':

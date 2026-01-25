@@ -34,8 +34,8 @@ class CounterBehavior(TradeBehavior):
                 cashDiff += pos.marginRateUpdate(futureInfo[symbol]["margin_rate"])
 
         # 更新当前资金
-        context.futureCash -= cashDiff
         context.cash -= cashDiff
+        context.futureCash -= cashDiff
 
     @staticmethod
     def afterBarStock():
@@ -64,11 +64,9 @@ class CounterBehavior(TradeBehavior):
                                             (stockShortPos, context.stockShortSummary)]:
             for symbol in position_dict:
                 if symbol in infoDict:
-                    end_date = infoDict[symbol]["end_date"]
                     daily_high_price = barDict[symbol]["high"]
                     daily_low_price = barDict[symbol]["low"]
                 else:
-                    end_date = context.end_date
                     daily_high_price = None
                     daily_low_price = None
 
@@ -83,7 +81,7 @@ class CounterBehavior(TradeBehavior):
                 posList: List[StockPosition] = position_dict.get(symbol)
                 for pos in posList:
                     # 更新Monitor
-                    pos.onBarMonitorTime(current_timestamp=timestamp, current_date=day, end_date=end_date)
+                    pos.onBarMonitorTime(current_timestamp=timestamp)
                     pos.onBarMonitorStatic(daily_max_price=daily_high_price, daily_min_price=daily_low_price)
                     pos.onBarMonitorDynamic(daily_max_price=daily_high_price, daily_min_price=daily_low_price)
                     # 更新仓位基本属性
@@ -138,7 +136,7 @@ class CounterBehavior(TradeBehavior):
                 posList: List[FuturePosition] = position_dict.get(symbol)
                 for pos in posList:
                     # 更新Monitor
-                    pos.onBarMonitorTime(current_timestamp=timestamp, current_date=day, end_date=end_date)
+                    pos.onBarMonitorTime(current_timestamp=timestamp, end_date=end_date)
                     pos.onBarMonitorStatic(daily_max_price=daily_high_price, daily_min_price=daily_low_price)
                     pos.onBarMonitorDynamic(daily_max_price=daily_high_price, daily_min_price=daily_low_price)
                     # 更新仓位基本属性
@@ -236,7 +234,7 @@ class CounterBehavior(TradeBehavior):
                 context.stockLongSummary[symbol] = StockSummary(direction, ori_price=price,
                                                                 total_vol=vol,
                                                                 static_profit=static_profit,
-                                                                static_loss=dynamic_loss,
+                                                                static_loss=static_loss,
                                                                 dynamic_profit=dynamic_profit,
                                                                 dynamic_loss=dynamic_loss)
             else:
@@ -251,7 +249,7 @@ class CounterBehavior(TradeBehavior):
                 context.stockShortSummary[symbol] = StockSummary(direction, ori_price=price,
                                                                  total_vol=vol,
                                                                  static_profit=static_profit,
-                                                                 static_loss=dynamic_loss,
+                                                                 static_loss=static_loss,
                                                                  dynamic_profit=dynamic_profit,
                                                                  dynamic_loss=dynamic_loss)
             else:
@@ -285,7 +283,7 @@ class CounterBehavior(TradeBehavior):
         margin_rate = futureInfo[symbol]["margin_rate"] # 保证金率
         pre_settle = futureInfo[symbol]["pre_settle"]  # 昨结算价
         context.cash -= vol * price * margin_rate
-        context.stockCash -= vol * price * margin_rate
+        context.futureCash -= vol * price * margin_rate
         pos = FuturePosition(direction, symbol, price, vol,
                              pre_settle, margin_rate,
                              min_timestamp, max_timestamp,
@@ -300,7 +298,7 @@ class CounterBehavior(TradeBehavior):
                 context.futureLongSummary[symbol] = FutureSummary(direction, ori_price=price,
                                                                    total_vol=vol,
                                                                    static_profit=static_profit,
-                                                                   static_loss=dynamic_loss,
+                                                                   static_loss=static_loss,
                                                                    dynamic_profit=dynamic_profit,
                                                                    dynamic_loss=dynamic_loss)
             else:
@@ -410,8 +408,8 @@ class CounterBehavior(TradeBehavior):
                     break
 
         # 结算
-        context.cash += (margin + profit)  # 收回的100%保证金
-        context.stockCash += (margin + profit)
+        context.cash += margin  # 收回的100%保证金
+        context.stockCash += margin
         context.profit += profit
         context.stockProfit += profit
         context.realTimeProfit += profitDiff
@@ -439,7 +437,7 @@ class CounterBehavior(TradeBehavior):
                 return
             pos_list: List[FuturePosition] = context.futureLongPosition[symbol]
         else:
-            if symbol not in context.stockShortPosition:
+            if symbol not in context.futureShortPosition:
                 print(f"没有该期货空头的持仓:{symbol}")
                 return
             pos_list: List[FuturePosition] = context.futureShortPosition[symbol]
@@ -489,7 +487,7 @@ class CounterBehavior(TradeBehavior):
                 else:
                     settleProfit += (price - preSettle) * posVol * posSign
                     profitDiff += (price - prePrice) * posVol * posSign
-                margin += preMargin  # (preMargin + settleProfit) # 这里保证金是实时更新的
+                margin += preMargin  # (preMargin + settleProfit) # 这里保证金是实时更新的 -> 利润已经包含在保证金里面了
             # 再对持仓&持仓视图进行批处理
             if direction == "long":
                 del context.futureLongSummary[symbol]  # 直接删除该标的的持仓视图
@@ -535,7 +533,7 @@ class CounterBehavior(TradeBehavior):
                     margin += preMargin * (max_vol / posVol)
                     break
         # 结算
-        context.cash += (margin + profitDiff)  # 收回的100%保证金
+        context.cash += margin  # 收回的100%保证金
         context.futureCash += margin
         context.profit += profit
         context.futureProfit += profit
@@ -548,12 +546,13 @@ class CounterBehavior(TradeBehavior):
                                   "symbol":symbol, "price": price, "vol": record_vol, "reason": reason}
 
     @staticmethod
-    def monitorStockPosition(direction: str, sequence: bool):
+    def monitorStockPosition(direction: str, sequence: bool, useClose: bool):
         """
         【柜台处理订单后运行,可重复运行】每日盘中运行,负责监控当前持仓是否满足限制平仓要求
         sequence=true 假设high先到来
         sequence=false 假设low先到来
         :param sequence: bool
+        :param useClose: bool -> 当触发止盈止损价的时候, 是否使用收盘价进行平仓(日线回测慎选!!!)
         :return:
         """
         # 获取当前回测上下文配置
@@ -566,23 +565,18 @@ class CounterBehavior(TradeBehavior):
             return
 
         dataDict = DataDict.get_instance()
-        day: pd.Timestamp = context.current_date
+        date: pd.Timestamp = context.current_date
         minute: pd.Timestamp = context.current_minute
         timestamp: pd.Timestamp = context.current_timestamp
         if minute not in dataDict.stockKDict:
             return
         barDict: Dict[str, Dict] = dataDict.stockKDict[minute]
-        infoDict: Dict[str, Dict] = dataDict.stockInfoDict
-
-        for symbol in totalPos:
+        symbolList = list(totalPos.keys())  # list操作会原地进行副本的复制 -> 避免了遍历的时候字典容量变化的bug
+        for symbol in symbolList:
             if symbol not in barDict:
                 continue
             bar = barDict[symbol]
             # 基本信息
-            if symbol in infoDict:  # 股票这里可以稍微松一点也没关系 -> 期货必须给出最后交易日
-                end_date = infoDict[symbol]["end_date"]
-            else:
-                end_date = pd.Timestamp("20300101")
             high_price = bar["high"]
             low_price = bar["low"]
             close_price = bar["close"]
@@ -596,9 +590,9 @@ class CounterBehavior(TradeBehavior):
                 time_monitor = pos.time_monitor
                 static_monitor = pos.static_monitor
                 dynamic_monitor = pos.dynamic_monitor
-                if time_monitor < 0:    # -2:<最短持仓时间/ -1:属于最短持仓~最长持仓时间之间的仓位
+                if time_monitor == -2:    # -2:<最短持仓时间(优先级最高)/ -1:属于最短持仓~最长持仓时间之间的仓位(需要进行别的检测)
                     i+=1
-                    continue
+                    break
                 i+=1
 
                 # 获取持仓信息
@@ -607,10 +601,6 @@ class CounterBehavior(TradeBehavior):
 
                 # 时间维度平仓判断[在PyBackTest中，时间维度优先级>价格维度]
                 if time_monitor == 1:
-                    if day >= end_date:
-                        CounterBehavior.closeStock(direction=direction, symbol=symbol, vol=posVol,
-                                         price=close_price, reason="到期平仓")
-                        continue
                     if timestamp > max_timestamp:   # 超过最长持仓时间
                         CounterBehavior.closeStock(direction=direction, symbol=symbol, vol=posVol,
                                          price=close_price, reason="最长持仓时间")
@@ -622,20 +612,24 @@ class CounterBehavior(TradeBehavior):
                 if static_monitor == 1:
                     if sequence: # 假设最高价先到来
                         if static_high and high_price >= static_high:
-                            CounterBehavior.closeStock(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_high,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最高价")
                             continue
                         if static_low and low_price <= static_low:
-                            CounterBehavior.closeStock(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_low,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最低价")
                             continue
                     else:   # 假设最低价先到来
                         if static_low and low_price <= static_low:
-                            CounterBehavior.closeStock(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_low,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最低价")
                             continue
                         if static_high and high_price >= static_high:
-                            CounterBehavior.closeStock(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_high,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最高价")
                             continue
 
@@ -645,31 +639,36 @@ class CounterBehavior(TradeBehavior):
                 if dynamic_monitor == 1:
                     if sequence:
                         if dynamic_high and high_price >= dynamic_high:
-                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_high,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最高价")
                             continue
                         if dynamic_low and low_price <= dynamic_low:
-                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_low,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最低价")
                             continue
                     else:
                         if dynamic_low and low_price <= dynamic_low:
-                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_low,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最低价")
                             continue
                         if dynamic_high and high_price >= dynamic_high:
-                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_high,2)
+                            CounterBehavior.closeStock(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最高价")
                             continue
 
     @staticmethod
-    def monitorFuturePosition(direction: str, sequence: bool):
+    def monitorFuturePosition(direction: str, sequence: bool, useClose: bool):
         """
         【柜台处理订单后运行,可重复运行】每日盘中运行,负责监控当前持仓是否满足限制平仓要求
         sequence=true 假设high先到来
         sequence=false 假设low先到来
         :param direction:
         :param sequence:
+        :param useClose: bool -> 当触发止盈止损价的时候, 是否使用收盘价进行平仓(日线回测慎选!!!)
         :return:
         """
         # 获取当前回测上下文配置
@@ -690,7 +689,8 @@ class CounterBehavior(TradeBehavior):
         barDict: Dict[str, Dict] = dataDict.futureKDict[minute]
         infoDict: Dict[str, Dict] = dataDict.futureInfoDict
 
-        for symbol in totalPos:
+        symbolList = list(totalPos.keys())
+        for symbol in symbolList:
             if symbol not in barDict:
                 continue
             info = infoDict[symbol]
@@ -710,9 +710,8 @@ class CounterBehavior(TradeBehavior):
                 time_monitor = pos.time_monitor
                 static_monitor = pos.static_monitor
                 dynamic_monitor = pos.dynamic_monitor
-                if time_monitor < 0:    # -2:<最短持仓时间/ -1:属于最短持仓~最长持仓时间之间的仓位
-                    i+=1
-                    continue
+                if time_monitor == -2:    # -2:<最短持仓时间/ -1:属于最短持仓~最长持仓时间之间的仓位
+                    break
                 i+=1
 
                 # 获取持仓信息
@@ -736,20 +735,24 @@ class CounterBehavior(TradeBehavior):
                 if static_monitor == 1:
                     if sequence: # 假设最高价先到来
                         if static_high and high_price >= static_high:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_high,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最高价")
                             continue
                         if static_low and low_price <= static_low:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_low,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最低价")
                             continue
                     else:   # 假设最低价先到来
                         if static_low and low_price <= static_low:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_low,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最低价")
                             continue
                         if static_high and high_price >= static_high:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, price=close_price, vol=posVol,
+                            price = close_price if useClose else round(static_high,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, price=price, vol=posVol,
                                              reason="静态最高价")
                             continue
 
@@ -759,19 +762,23 @@ class CounterBehavior(TradeBehavior):
                 if dynamic_monitor == 1:
                     if sequence:
                         if dynamic_high and high_price >= dynamic_high:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_high,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最高价")
                             continue
                         if dynamic_low and low_price <= dynamic_low:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_low,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最低价")
                             continue
                     else:
                         if dynamic_low and low_price <= dynamic_low:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_low,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最低价")
                             continue
                         if dynamic_high and high_price >= dynamic_high:
-                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=close_price,
+                            price = close_price if useClose else round(dynamic_high,2)
+                            CounterBehavior.closeFuture(direction, symbol=symbol, vol=posVol, price=price,
                                              reason="动态最高价")
                             continue

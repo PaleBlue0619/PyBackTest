@@ -127,8 +127,8 @@ class BackTester(Counter, CounterBehavior):
             if stockInfo is None:
                 return {}
             t0 = time.time()
-            stockInfoDict = fromDataFrame(stockInfo).toStockInfos("TradeDate", "symbol", "open_price", "high_price", "low_price",
-                                                               "close_price", "start_date", "end_date")
+            stockInfoDict = fromDataFrame(stockInfo).toStockInfos("TradeDate", "symbol", "open_price", "high_price",
+                                                                  "low_price", "close_price")
             t1 = time.time()
             print(f"{self.name} process_stockInfo time: {t1-t0}")
             return stockInfoDict
@@ -228,14 +228,15 @@ class BackTester(Counter, CounterBehavior):
                 self.onBar(barDict)
                 if self.SysContext.run_stock:
                     self.processStockOrder(1.0, 1.0)
-                    self.monitorStockPosition("long", True)
-                    self.monitorStockPosition("short", True)
                     self.afterBarStock()
+                    self.monitorStockPosition("long", False, useClose=False)
+                    self.monitorStockPosition("short", True, useClose=False)
+
                 if self.SysContext.run_future:
                     self.processFutureOrder(1.0, 1.0)
-                    Counter.monitorFuturePosition("long", True)
-                    Counter.monitorFuturePosition("short", True)
                     Counter.afterBarFuture()
+                    Counter.monitorFuturePosition("long", False, useClose=False)
+                    Counter.monitorFuturePosition("short", True, useClose=False)
 
             # 4.执行用户级别afterTrading回调 -> 系统级别afterTrading回调
             self.afterTrading()

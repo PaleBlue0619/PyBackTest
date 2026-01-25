@@ -25,7 +25,8 @@ class StockSummary(Summary):
         self.realTimePrice = ori_price
 
     # 开仓回调函数
-    def openUpdate(self, price: float, vol: int, static_profit: float, static_loss: float, dynamic_profit: float, dynamic_loss: float):
+    def openUpdate(self, price: float, vol: int, static_profit: float, static_loss: float,
+                   dynamic_profit: float, dynamic_loss: float):
         self.static_profit = static_profit
         self.static_loss = static_loss
         self.dynamic_profit = dynamic_profit
@@ -48,18 +49,18 @@ class StockSummary(Summary):
         以price 卖出 vol后
         """
         self.total_vol -= vol
-        self.profit += (price - self.ori_price) * vol * 1 # 累计盈亏
+        self.profit += (price - self.ori_price) * vol * self.sign # 累计盈亏
         self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign # 更新最新利润
 
     # K线回调函数
     def onBarUpdate(self, price: float):
         self.realTimePrice = price
-        self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign
+        self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign # 更新最新利润
 
     # 盘后结算回调函数
     def afterDayUpdate(self, settle: float):
         self.realTimePrice = settle
-        self.realTimeProfit = (settle - self.ori_price) * self. total_vol * self.sign
+        self.realTimeProfit = (settle - self.ori_price) * self.total_vol * self.sign  # 更新最新利润
 
 
 class FutureSummary(Summary):
@@ -76,7 +77,8 @@ class FutureSummary(Summary):
         self.realTimePrice = ori_price
 
     # 开仓回调函数
-    def openUpdate(self, price: float, vol: int, static_profit: float, static_loss: float, dynamic_profit: float, dynamic_loss: float):
+    def openUpdate(self, price: float, vol: int, static_profit: float, static_loss: float,
+                   dynamic_profit: float, dynamic_loss: float):
         self.static_profit = static_profit
         self.static_loss = static_loss
         self.dynamic_profit = dynamic_profit
@@ -85,9 +87,9 @@ class FutureSummary(Summary):
         # 更新vol
         ori_price = self.ori_price
         vol0 = self.total_vol
-        amount0 = vol0 * ori_price
+        amount0 = vol0 * ori_price  # 原成交额
         vol1 = vol0 + vol
-        amount1 = amount0 + price * vol
+        amount1 = amount0 + price * vol # 现成交额
 
         # 赋值回summary
         self.total_vol = vol1
@@ -99,7 +101,7 @@ class FutureSummary(Summary):
         以price 卖出 vol后
         """
         self.total_vol -= vol
-        self.profit += (price - self.ori_price) * vol * 1 # 累计盈亏
+        self.profit += (price - self.ori_price) * vol * self.sign # 累计盈亏
         self.realTimeProfit = (price - self.ori_price) * self.total_vol * self.sign # 更新最新利润
 
     # K线回调函数

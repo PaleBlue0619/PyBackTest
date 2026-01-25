@@ -114,8 +114,8 @@ def onBar(self: BackTester, context: Context, msg: Dict[str, Dict[str, float]]):
                 price = msg[symbol]["open"]
                 vol = int(currentCash * context["dayLongDict"][symbol]/ price)
                 self.orderOpenStock("long", symbol, vol=vol, price=price,
-                                    static_profit=0.02, static_loss=0.02,
-                                    dynamic_profit=0.03, dynamic_loss=0.03,
+                                    static_profit=0.05, static_loss=0.03,
+                                    dynamic_profit=0.05, dynamic_loss=0.03,
                                     min_timestamp=nextDate, max_timestamp=pd.Timestamp(self.end_date),
                                     min_order_timestamp=currentTimestamp, max_order_timestamp=nextDate,
                                     commission=0.0, partial_order=False,
@@ -170,11 +170,9 @@ if __name__ == "__main__":
     }
     # 创建回测实例
     BackTester = BackTester("StockStrategyTest", config, eventCallBacksDict, session=session)
-    t0 = time.time()
     stockBar = pd.read_parquet(r"D:\BackTest\PyBackTest\data\stock_cn\bar")
-    stockBar = stockBar[stockBar["TradeDate"]<=pd.Timestamp("20200131")].reset_index(drop=True)
     stockInfo = pd.read_parquet(r"D:\BackTest\PyBackTest\data\stock_cn\info")
-    stockInfo = stockInfo[stockInfo["TradeDate"]<=pd.Timestamp("20200131")].reset_index(drop=True)
+    t0 = time.time()
     BackTester.append(
         stockBar=stockBar,
         stockInfo=stockInfo,

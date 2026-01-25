@@ -28,10 +28,10 @@ class StockPosition(Position):
         self.static_monitor = 0 # 是否需要监控静态止盈止损
         self.static_profit = static_profit
         self.static_loss = static_loss
-        if self.sign == 1:
+        if self.sign == 1:  # 多单
             self.static_high = price * (1 + static_profit) if static_profit else None
             self.static_low = price * (1 - static_loss) if static_loss else None
-        else:
+        else:   # 空单
             self.static_high = price * (1 + static_loss) if static_loss else None
             self.static_low = price * (1 - static_profit) if static_profit else None
         self.dynamic_monitor = 0 # 是否需要监控动态止盈止损
@@ -39,7 +39,7 @@ class StockPosition(Position):
         self.dynamic_loss = dynamic_loss
         self.dynamic_high = None
         self.dynamic_low = None
-        self.history_max = price
+        self.history_max = price    # 初始状态
         self.history_min = price
 
     def onBarUpdate(self, price: float) -> float:
@@ -59,19 +59,19 @@ class StockPosition(Position):
         self.static_monitor = 0
         self.dynamic_monitor = 0
 
-    def onBarMonitorTime(self, current_date: pd.Timestamp, current_timestamp: pd.Timestamp, end_date: pd.Timestamp):
+    def onBarMonitorTime(self, current_timestamp: pd.Timestamp):
         """
-        :param current_date: 当前日期
         :param current_timestamp: 当前时间戳
-        :param end_date: 最后交易日
         :return:
         """
         if self.time_monitor == 0:
-            min_date = pd.Timestamp(self.min_timestamp)
-            max_date = pd.Timestamp(self.max_timestamp)
-            if min_date < current_date: # T+1
+            min_timestamp = pd.Timestamp(self.min_timestamp)
+            max_timestamp = pd.Timestamp(self.max_timestamp)
+            if self.symbol == "000877.SZ":
+                print(current_timestamp, min_timestamp, max_timestamp)
+            if min_timestamp >= current_timestamp: # T+1
                 self.time_monitor = -2
-            elif end_date > current_date > min_date and current_date < max_date:
+            elif min_timestamp < current_timestamp < max_timestamp:
                 self.time_monitor = -1  # 在最长持仓时间内 + 期货合约没有结束
             else:
                 self.time_monitor = 1   # 正常平仓
@@ -85,9 +85,9 @@ class StockPosition(Position):
         if self.static_monitor == 0:
             if not self.static_high and not self.static_low:
                 self.static_monitor = -1
-            elif not self.static_high and self.static_low > daily_min_price:
+            elif not self.static_high and self.static_low < daily_min_price:
                 self.static_monitor = -1    # 一定成交不了
-            elif not self.static_low and self.static_high < daily_max_price:
+            elif not self.static_low and self.static_high > daily_max_price:
                 self.static_monitor = -1    # 一定成交不了
             else:
                 self.static_monitor = 1
@@ -110,7 +110,7 @@ class StockPosition(Position):
             min_price = min(daily_min_price, self.history_min)
             if not self.dynamic_profit and not self.dynamic_loss:
                 self.dynamic_monitor = -1   # 不设动态止盈止损
-            elif not self.dynamic_profit and (max_price - daily_min_price)/max_price < self.dynamic_loss:
+            elif not self.dynamic_profit and (max_price - daily_min_price)/daily_min_price < self.dynamic_loss:
                 # 只设动态止损+max(daily_high,history_high)->daily_low的振幅<动态止损比例：今天必然触发不了
                 self.dynamic_monitor = -1
             elif not self.dynamic_loss and (daily_max_price - min_price)/min_price < self.dynamic_profit:
@@ -161,7 +161,7 @@ class FuturePosition(Position):
         if abs(margin_rate - margin_rate)< 1e-6:
             return 0.0
         margin_diff = (margin_rate - self.margin_rate) * self.vol * self.pre_price
-        self.margin -= margin_diff
+        self.margin += margin_diff
         self.margin_rate = margin_rate
         return margin_diff
 
@@ -173,6 +173,7 @@ class FuturePosition(Position):
         # 更新当前仓位的利润
         realTimeProfit = (price - self.pre_price) * self.vol * self.sign
         self.profit += realTimeProfit
+        self.margin += realTimeProfit
         self.pre_price = price
         return realTimeProfit
 
@@ -185,7 +186,7 @@ class FuturePosition(Position):
         self.hold_days += 1
 
         # 更新当前仓位的利润
-        realTimeProfit = (self.pre_price - settle) * self.vol * self.sign
+        realTimeProfit = (settle - self.pre_price) * self.vol * self.sign
         self.profit += realTimeProfit
         self.margin += realTimeProfit
         self.pre_price = settle # 更新当前仓位的pre_price为price
@@ -197,19 +198,18 @@ class FuturePosition(Position):
         self.pre_settle = settle
         return settleProfit
 
-    def onBarMonitorTime(self, current_date: pd.Timestamp, current_timestamp: pd.Timestamp, end_date: pd.Timestamp):
+    def onBarMonitorTime(self, current_timestamp: pd.Timestamp, end_date: pd.Timestamp):
         """
-        :param current_date: 当前日期
         :param current_timestamp: 当前时间戳
         :param end_date: 最后交易日
         :return:
         """
         if self.time_monitor == 0:
-            min_date = pd.Timestamp(self.min_timestamp)
-            max_date = pd.Timestamp(self.max_timestamp)
-            if min_date < current_date: # T+1
+            min_timestamp = pd.Timestamp(self.min_timestamp)
+            max_timestamp = pd.Timestamp(self.max_timestamp)
+            if min_timestamp <= current_timestamp: # T+1
                 self.time_monitor = -2
-            elif end_date > current_date > min_date and current_date < max_date:
+            elif min_timestamp < current_timestamp <end_date and current_timestamp < max_timestamp:
                 self.time_monitor = -1  # 在最长持仓时间内 + 期货合约没有结束
             else:
                 self.time_monitor = 1   # 正常平仓
@@ -223,9 +223,9 @@ class FuturePosition(Position):
         if self.static_monitor == 0:
             if not self.static_high and not self.static_low:
                 self.static_monitor = -1
-            elif not self.static_high and self.static_low > daily_min_price:
+            elif not self.static_high and self.static_low < daily_min_price:
                 self.static_monitor = -1    # 一定成交不了
-            elif not self.static_low and self.static_high < daily_max_price:
+            elif not self.static_low and self.static_high > daily_max_price:
                 self.static_monitor = -1    # 一定成交不了
             else:
                 self.static_monitor = 1
@@ -248,7 +248,7 @@ class FuturePosition(Position):
             min_price = min(daily_min_price, self.history_min)
             if not self.dynamic_profit and not self.dynamic_loss:
                 self.dynamic_monitor = -1   # 不设动态止盈止损
-            elif not self.dynamic_profit and (max_price - daily_min_price)/max_price < self.dynamic_loss:
+            elif not self.dynamic_profit and (max_price - daily_min_price)/daily_min_price < self.dynamic_loss:
                 # 只设动态止损+max(daily_high,history_high)->daily_low的振幅<动态止损比例：今天必然触发不了
                 self.dynamic_monitor = -1
             elif not self.dynamic_loss and (daily_max_price - min_price)/min_price < self.dynamic_profit:
