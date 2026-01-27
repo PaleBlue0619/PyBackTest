@@ -28,6 +28,15 @@ def beforeTrading(self: BackTester, context: Context):
     currentTime = context["TradeTime"]
     print("Current BackTest DayTime is", currentDate, currentTime)
 
+# TODO: 待实现成交回报函数的回调逻辑
+def onTrade(self: BackTester, context: Context, trade: Dict[str, any]):
+    """
+    成交回报函数
+    trade: {"timestamp":, "symbol":, "price":, "direction": }
+    """
+    print("OnTrade", trade["timestamp"], trade["symbol"], trade["price"], trade["direction"])
+
+
 def onBar(self: BackTester, context: Context, msg: Dict[str, Dict[str, float]]):
     """
     Bar回调函数
@@ -69,6 +78,42 @@ def onBar(self: BackTester, context: Context, msg: Dict[str, Dict[str, float]]):
         if currentCash <= self.SysContext.oriFutureCash * 0.1:
             print("CurrentDate", currentDate, "Cash is not enough!", "CurrentCash: ", currentCash)
             return
+        longSummary: Dict[str,FutureSummary] = self.getFutureSummary(direction="long", symbol=None)
+        shortSummary: Dict[str,FutureSummary] = self.getFutureSummary(direction="short", symbol=None)
+        for symbol, bar in msg.items():
+            # 遍历当前每个期货的K线
+            # 1.若没有触发日线信号 -> 自动结束
+            if symbol not in context["dayLongDict"] and symbol not in context["dayShortDict"]:
+                continue
+
+            # 2.若当前有持仓 -> 自动结束
+            if symbol in longSummary or symbol in shortSummary:
+                continue
+
+            # 3.若触发了日线多单信号 -> 下多单
+            if symbol in context["dayLongDict"]:
+                price = msg[symbol]["open"]
+                margin_rate = 0.1
+                vol = int(currentCash * context["dayLongDict"][symbol]/ margin_rate / price)
+                self.orderOpenFuture(direction="long", symbol=symbol, vol=vol, price=price,
+                                     commission=0.0,
+                                     static_profit=0.03, static_loss=0.02,
+                                     dynamic_profit=0.03, dynamic_loss=0.02,
+                                     min_timestamp=currentTimestamp, max_timestamp=None,
+                                     min_order_timestamp=currentTimestamp, max_order_timestamp=currentTimestamp + pd.Timedelta(1, "D"),
+                                     reason="openLong", partial_order=False)
+            # 4.若触发了日线空单信号 -> 下空单
+            if symbol in context["dayShortDict"]:
+                price = msg[symbol]["open"]
+                margin_rate = 0.1
+                vol = int(currentCash * context["dayShortDict"][symbol]/ margin_rate / price)
+                self.orderOpenFuture(direction="short", symbol=symbol, vol=vol, price=price,
+                                     commission=0.0,
+                                     static_profit=0.03, static_loss=0.02,
+                                     dynamic_profit=0.03, dynamic_loss=0.02,
+                                     min_timestamp=currentTimestamp, max_timestamp=None,
+                                     min_order_timestamp=currentTimestamp, max_order_timestamp=currentTimestamp + pd.Timedelta(1, "D"),
+                                     reason="openShort", partial_order=False)
 
 def afterTrading(self: BackTester, context: Context):
     """
@@ -82,6 +127,15 @@ def afterTrading(self: BackTester, context: Context):
     context["dayLongDict"] = {}
     context["dayShortDict"] = {}
 
+    # 获取下一日的主力合约信息
+    if nextDate not in context["MainContractDict"]:
+        return
+    MainContractDict = context["MainContractDict"][nextDate]
+    if "AU" in MainContractDict:
+        context["dayLongDict"] = {MainContractDict["AU"][0]: 0.4}
+    if "SC" in MainContractDict:
+        context["dayShortDict"] = {MainContractDict["SC"][0]: 0.4}
+
 def finalize(context: Context):
     """
     策略回调结束函数
@@ -91,6 +145,7 @@ def finalize(context: Context):
 
 if __name__ == "__main__":
     # 这是一个很SB的策略 -> 无脑做空原油主连+做多黄金主连
+    # TODO: 补充交易乘数
     # 获取配置文件
     session = ddb.session("172.16.0.184", 8001, "maxim", "dyJmoc-tiznem-1figgu")
     config = {
@@ -120,11 +175,19 @@ if __name__ == "__main__":
     # }
     # np.save(r"D:\BackTest\PyBackTest\data\future_cn\main\MainContractDict.npy", MainContractDict, allow_pickle=True)
     MainContractDict = np.load(r"D:\BackTest\PyBackTest\data\future_cn\main\MainContractDict.npy", allow_pickle=True).item()
-    print(MainContractDict)
     config["context"] = {
         "MainContractDict": MainContractDict, # {TradeDate:{product: symbol}}
-        "dayLongDict": [],  # 每日做多字典{标的: 权重}
-        "dayShortDict": []  # 每日做空字典{标的: 权重}
+        "dayLongDict": {},  # 每日做多字典{标的: 权重}
+        "dayShortDict": {}  # 每日做空字典{标的: 权重}
+    }
+    # 构造回调函数字典
+    eventCallBacksDict = {
+        "initialize": initialize,
+        "beforeTrading": beforeTrading,
+        "afterTrading": afterTrading,
+        "onTrade": onTrade,
+        "onBar": onBar,
+        "finalize": finalize
     }
     # 创建回测实例
     BackTester = BackTester("FutureBackTest", config,
@@ -132,9 +195,20 @@ if __name__ == "__main__":
                             session=session)
     futureBar = pd.read_parquet(r"D:\BackTest\PyBackTest\data\future_cn\bar")
     futureInfo = pd.read_parquet(r"D:\BackTest\PyBackTest\data\future_cn\info")
+    t0 = time.time()
     BackTester.append(
         stockBar=None,
         stockInfo=None,
         futureBar=futureBar,
         futureInfo=futureInfo
     )
+    # TODO: info对象缓存
+    t1 = time.time()
+    stats = BackTester.getTradeStatistics(statsType=None)
+    orderDetails = BackTester.getOrderDetails(assetType="future")
+    tradeDetails = BackTester.getTradeDetails(assetType="future")
+    print(stats)
+    stats.to_excel(r"Statistics(Future).xlsx", index=None)
+    orderDetails.to_excel(r"OrderDetails(Future).xlsx", index=None)
+    tradeDetails.to_excel(r"TradeDetails(Future).xlsx", index=None)
+    print("耗时:", t1-t0, "s")
