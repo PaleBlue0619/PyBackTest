@@ -52,6 +52,7 @@ def afterTrading(self: BackTester, context: Context):
         context["dayShortDict"] = dict(zip(dayShortList,[0.4/len(dayShortList)]*len(dayShortList)))
     print("Current Backtest DayTime is", currentDate, currentTime)
 
+# TODO: 待实现成交回报函数的回调逻辑
 def onTrade(self: BackTester, context: Context, trade: Dict[str, any]):
     """
     成交回报函数
@@ -156,8 +157,8 @@ if __name__ == "__main__":
     MyFactor = pd.read_feather(r"D:\BackTest\PyBackTest\data\stock_cn\factor\MyFactor.feather")
     config["context"] = {
         "MyFactor": MyFactor,
-        "dayLongDict": [],  # 每日做多列表
-        "dayShortDict": [] # 每日做空列表
+        "dayLongDict": [],  # 每日做多字典{标的:权重}
+        "dayShortDict": [] # 每日做空字典{标的:权重}
     }
     # 构造回调函数字典
     eventCallBacksDict = {
