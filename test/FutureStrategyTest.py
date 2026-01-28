@@ -15,7 +15,7 @@ def initialize(self: BackTester, context: Dict):
     策略回调初始化函数
     """
     print("Backtest Start!")
-    print("Initialize context", context)
+    # print("Initialize context", context)
     # 调仓日期
     context["posDateList"] = [self.date_list[i] for i in range(0, len(self.date_list)) if i%5 == 0]
 
@@ -75,6 +75,7 @@ def onBar(self: BackTester, context: Context, msg: Dict[str, Dict[str, float]]):
     # Rule-2: 如果当前交易日是调仓日, 则按照信号进行开仓
     if currentDate in context["posDateList"]:
         currentCash = self.getAvailableCash(assetType="future")
+        oriCash = self.SysContext.oriFutureCash
         if currentCash <= self.SysContext.oriFutureCash * 0.1:
             print("CurrentDate", currentDate, "Cash is not enough!", "CurrentCash: ", currentCash)
             return
@@ -90,30 +91,35 @@ def onBar(self: BackTester, context: Context, msg: Dict[str, Dict[str, float]]):
             if symbol in longSummary or symbol in shortSummary:
                 continue
 
+            contract = str(symbol).split(".")[0]
+            product = contract.replace(contract[-4:],"")
+            multi = context["MultiDict"][product]   # 获取交易乘数
             # 3.若触发了日线多单信号 -> 下多单
             if symbol in context["dayLongDict"]:
                 price = msg[symbol]["open"]
                 margin_rate = 0.1
-                vol = int(currentCash * context["dayLongDict"][symbol]/ margin_rate / price)
+                vol = max(int(oriCash * context["dayLongDict"][symbol]/ margin_rate / price),1)
+                vol -= vol % multi
                 self.orderOpenFuture(direction="long", symbol=symbol, vol=vol, price=price,
                                      commission=0.0,
-                                     static_profit=0.03, static_loss=0.02,
-                                     dynamic_profit=0.03, dynamic_loss=0.02,
-                                     min_timestamp=currentTimestamp, max_timestamp=None,
+                                     static_profit=0.015, static_loss=0.01,
+                                     dynamic_profit=0.015, dynamic_loss=0.01,
+                                     min_timestamp=currentTimestamp, max_timestamp=pd.Timestamp("20201231"),
                                      min_order_timestamp=currentTimestamp, max_order_timestamp=currentTimestamp + pd.Timedelta(1, "D"),
                                      reason="openLong", partial_order=False)
-            # 4.若触发了日线空单信号 -> 下空单
-            if symbol in context["dayShortDict"]:
-                price = msg[symbol]["open"]
-                margin_rate = 0.1
-                vol = int(currentCash * context["dayShortDict"][symbol]/ margin_rate / price)
-                self.orderOpenFuture(direction="short", symbol=symbol, vol=vol, price=price,
-                                     commission=0.0,
-                                     static_profit=0.03, static_loss=0.02,
-                                     dynamic_profit=0.03, dynamic_loss=0.02,
-                                     min_timestamp=currentTimestamp, max_timestamp=None,
-                                     min_order_timestamp=currentTimestamp, max_order_timestamp=currentTimestamp + pd.Timedelta(1, "D"),
-                                     reason="openShort", partial_order=False)
+            # # 4.若触发了日线空单信号 -> 下空单
+            # if symbol in context["dayShortDict"]:
+            #     price = msg[symbol]["open"]
+            #     margin_rate = 0.1
+            #     vol = max(int(oriCash * context["dayShortDict"][symbol]/ margin_rate / price),1)
+            #     vol -= vol % multi
+            #     self.orderOpenFuture(direction="short", symbol=symbol, vol=vol, price=price,
+            #                          commission=0.0,
+            #                          static_profit=0.015, static_loss=0.01,
+            #                          dynamic_profit=0.015, dynamic_loss=0.01,
+            #                          min_timestamp=currentTimestamp, max_timestamp=pd.Timestamp("20201231"),
+            #                          min_order_timestamp=currentTimestamp, max_order_timestamp=currentTimestamp + pd.Timedelta(1, "D"),
+            #                          reason="openShort", partial_order=False)
 
 def afterTrading(self: BackTester, context: Context):
     """
@@ -177,6 +183,7 @@ if __name__ == "__main__":
     MainContractDict = np.load(r"D:\BackTest\PyBackTest\data\future_cn\main\MainContractDict.npy", allow_pickle=True).item()
     config["context"] = {
         "MainContractDict": MainContractDict, # {TradeDate:{product: symbol}}
+        "MultiDict": {"AU":1000, "SC":1000}, # 交易乘数
         "dayLongDict": {},  # 每日做多字典{标的: 权重}
         "dayShortDict": {}  # 每日做空字典{标的: 权重}
     }
@@ -194,7 +201,8 @@ if __name__ == "__main__":
                             eventCallBacksDict,
                             session=session)
     futureBar = pd.read_parquet(r"D:\BackTest\PyBackTest\data\future_cn\bar")
-    futureInfo = pd.read_parquet(r"D:\BackTest\PyBackTest\data\future_cn\info")
+    futureInfo = pd.read_parquet(r"D:\BackTest\PyBackTest\data\future_cn\info").rename(columns={"tradeDate":"TradeDate"})
+    futureInfo["multi"] = futureInfo["symbol"].apply(lambda x:str(x)[:2]).map({"SC":1000, "AU":1000})
     t0 = time.time()
     BackTester.append(
         stockBar=None,
