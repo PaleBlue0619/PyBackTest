@@ -51,8 +51,8 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
 
     def toFutureInfo(self, symbolCol: str,
                      openCol: str, highCol: str, lowCol: str, closeCol: str,
-                     preSettleCol: str,
-                     settleCol: str, startDateCol: str, endDateCol: str) -> Dict[str, dict]:
+                     preSettleCol: str, settleCol: str, multiCol: str,
+                     startDateCol: str, endDateCol: str) -> Dict[str, dict]:
         """
         单个交易日的转换
         futureInfo: InfoDict<String, FutureInfo>>
@@ -66,18 +66,22 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
             close_price = row[closeCol]
             settle = row[settleCol]
             pre_settle = row[preSettleCol]
+            multi = row[multiCol]
             start_date = pd.Timestamp(row[startDateCol])
             end_date = pd.Timestamp(row[endDateCol])
             margin_rate = 0.1   # 由于当前缺少期货合约保证金率 -> 10%代替
             futureInfo[symbol] = {"open_price": open_price,
                     "high_price": high_price, "low_price": low_price, "close_price": close_price,
-                    "settle": settle, "pre_settle": pre_settle, "margin_rate": margin_rate,
+                    "settle": settle, "pre_settle": pre_settle,
+                    "multi": multi, "margin_rate": margin_rate,
                     "volume": volume, "start_date": start_date, "end_date": end_date}
         return futureInfo
 
     def toFutureInfos(self, dateCol: str, symbolCol: str,
                       openCol: str, highCol: str, lowCol: str, closeCol: str,
-                      preSettleCol: str, settleCol: str, startDateCol: str, endDateCol: str) -> Dict[pd.Timestamp, Dict[str, dict]]:
+                      preSettleCol: str, settleCol: str,
+                      multiCol: str,
+                      startDateCol: str, endDateCol: str) -> Dict[pd.Timestamp, Dict[str, dict]]:
         futureInfos = {}
         # 确保日期列是datetime类型
         if not pd.api.types.is_datetime64_any_dtype(self.data[dateCol]):
@@ -93,14 +97,15 @@ class fromDataFrame:    # 从DataFrame -> 回测需要的对象/字典/对象字
         for date_val, group in grouped:
             tradeDate = pd.Timestamp(date_val)
             futureInfos[tradeDate] = {}
-            for symbol, open_price, high_price, low_price, close_price, pre_settle, settle, start_date, end_date in zip(
+            for symbol, open_price, high_price, low_price, close_price, pre_settle, settle, multi, start_date, end_date in zip(
                     group[symbolCol], group[openCol], group[highCol], group[lowCol], group[closeCol], group[preSettleCol],
-                    group[settleCol], group[startDateCol], group[endDateCol]
+                    group[settleCol], group[multiCol], group[startDateCol], group[endDateCol]
             ):
                 margin_rate = 0.1
                 futureInfos[tradeDate][symbol] = {"open_price": open_price, "high_price": high_price, "low_price": low_price,
                                                  "close_price": close_price, "settle": settle, "pre_settle": pre_settle,
-                                                 "margin_rate": margin_rate, "start_date": start_date, "end_date": end_date}
+                                                 "margin_rate": margin_rate, "multi": multi,
+                                                  "start_date": start_date, "end_date": end_date}
         return futureInfos
 
     def toStockBar(self, isMinBar: bool, dateCol:  str, symbolCol: str,

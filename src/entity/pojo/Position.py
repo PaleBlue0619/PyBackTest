@@ -67,8 +67,6 @@ class StockPosition(Position):
         if self.time_monitor == 0:
             min_timestamp = pd.Timestamp(self.min_timestamp)
             max_timestamp = pd.Timestamp(self.max_timestamp)
-            if self.symbol == "000877.SZ":
-                print(current_timestamp, min_timestamp, max_timestamp)
             if min_timestamp >= current_timestamp: # T+1
                 self.time_monitor = -2
             elif min_timestamp < current_timestamp < max_timestamp:

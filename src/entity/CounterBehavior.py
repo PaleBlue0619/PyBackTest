@@ -27,9 +27,13 @@ class CounterBehavior(TradeBehavior):
         longPos: Dict[str, List[FuturePosition]] = context.futureLongPosition
         shortPos: Dict[str, List[FuturePosition]] = context.futureShortPosition
         for symbol, posList in longPos.items():
+            if symbol not in futureInfo:    # 该日缺乏该合约的保证金数据
+                continue
             for pos in posList:
                 cashDiff += pos.marginRateUpdate(futureInfo[symbol]["margin_rate"])
         for symbol, posList in shortPos.items():
+            if symbol not in futureInfo:    # 该日缺乏该合约的保证金数据
+                continue
             for pos in posList:
                 cashDiff += pos.marginRateUpdate(futureInfo[symbol]["margin_rate"])
 
@@ -533,8 +537,8 @@ class CounterBehavior(TradeBehavior):
                     margin += preMargin * (max_vol / posVol)
                     break
         # 结算
-        context.cash += margin  # 收回的100%保证金
-        context.futureCash += margin
+        context.cash += (margin + profitDiff)  # 收回的100%保证金(上根K线的) + 上根K线 -> 这根K线的实时pnl
+        context.futureCash += (margin + profitDiff)
         context.profit += profit
         context.futureProfit += profit
         context.futureSettleProfit += settleProfit

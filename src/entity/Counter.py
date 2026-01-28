@@ -111,6 +111,7 @@ class Counter(CounterBehavior):
         if minute not in dataDict.futureKDict:
             return
         barDict = dataDict.futureKDict[minute]
+        infoDict = dataDict.futureInfoDict
 
         # 记录需要删除的order_id
         delete_ids = []
@@ -130,25 +131,28 @@ class Counter(CounterBehavior):
             elif timestamp >= min_order_timestamp:
                 if symbol not in barDict:
                     continue
+                if symbol not in infoDict:
+                    continue
                 bar = barDict[symbol]
                 low = bar["low"]
                 high = bar["high"]
                 close = bar["close"]
                 volume = bar["volume"]
+                multi = infoDict[symbol]["multi"]
                 if low and high and close and volume:
                     if partialOrder: # 说明是部分成交的订单
                         price = close
                     if low<=price<=high:
                         # 开仓订单
                         if order_type == "open":
-                            openVolThreshold = int(volume * open_threshold)
+                            openVolThreshold = int(volume * open_threshold * multi)
                             if vol<=openVolThreshold:   # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
                                 order.partialOrder = True
                                 order.vol -= openVolThreshold
                                 vol = openVolThreshold
-                            if vol >= 1.0:
+                            if vol >= 1.0:  # 1.0 * multi maybe
                                 Counter.openFuture(direction=direction, symbol=symbol, vol=vol, price=price,
                                                static_profit=order.static_profit, static_loss=order.static_loss,
                                                dynamic_profit=order.dynamic_profit, dynamic_loss=order.dynamic_loss,
@@ -156,14 +160,14 @@ class Counter(CounterBehavior):
                                                reason=order.reason)
                         # 平仓订单
                         else:
-                            closeVolThreshold = int(volume * close_threshold)
+                            closeVolThreshold = int(volume * close_threshold * multi)
                             if vol<=closeVolThreshold:  # 完全成交
                                 delete_ids.append(order_id)
                             else:   # 部分成交
                                 order.partialOrder = True
                                 order.vol -= closeVolThreshold
                                 vol = closeVolThreshold
-                            if vol >= 1.0:
+                            if vol >= 1.0: # 1.0 * multi maybe
                                 Counter.closeFuture(direction=direction, symbol=symbol, vol=vol, price=price,
                                                 reason=order.reason)
         # 删除柜台已经完全成交的订单

@@ -1,6 +1,5 @@
 import os
 import time
-
 from src.entity.CounterBehavior import CounterBehavior
 from src.entity.Counter import Counter
 from src.entity.Context import Context
@@ -154,8 +153,8 @@ class BackTester(Counter, CounterBehavior):
                 return {}
             t0 = time.time()
             futureInfoDict = fromDataFrame(futureInfo).toFutureInfos(
-                    "tradeDate", "symbol", "open_price", "high_price", "low_price",
-                    "close_price", "pre_settle", "settle", "start_date", "end_date")
+                    "TradeDate", "symbol", "open_price", "high_price", "low_price",
+                    "close_price", "pre_settle", "settle", "multi", "start_date", "end_date")
             t1 = time.time()
             print(f"{self.name} process_futureInfo time: {t1-t0}")
             return futureInfoDict
@@ -234,9 +233,9 @@ class BackTester(Counter, CounterBehavior):
 
                 if self.SysContext.run_future:
                     self.processFutureOrder(1.0, 1.0)
-                    Counter.afterBarFuture()
-                    Counter.monitorFuturePosition("long", False, useClose=False)
-                    Counter.monitorFuturePosition("short", True, useClose=False)
+                    self.afterBarFuture()
+                    self.monitorFuturePosition("long", False, useClose=False)
+                    self.monitorFuturePosition("short", True, useClose=False)
 
             # 4.执行用户级别afterTrading回调 -> 系统级别afterTrading回调
             self.afterTrading()

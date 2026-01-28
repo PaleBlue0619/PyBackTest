@@ -16,8 +16,8 @@ class TradeBehavior:
         orderDetail = OrderDetails.get_instance()
         orderNum = context.get_nextOrderNum()   # 获取自增订单编号
 
-        min_timestamp = config.start_date if not min_timestamp else min_timestamp
-        max_timestamp = config.end_date if not max_timestamp else max_timestamp
+        min_timestamp = context.start_date if not min_timestamp else min_timestamp
+        max_timestamp = context.end_date if not max_timestamp else max_timestamp
         min_order_timestamp = context.start_time_stamp if not min_order_timestamp else min_order_timestamp
         max_order_timestamp = context.end_time_stamp if not max_order_timestamp else max_order_timestamp
 
@@ -92,8 +92,8 @@ class TradeBehavior:
         orderNum = context.get_nextOrderNum()
         orderDetail = OrderDetails.get_instance()
 
-        min_timestamp = config.start_date if not min_timestamp else min_timestamp
-        max_timestamp = config.end_date if not max_timestamp else max_timestamp
+        min_timestamp = context.start_date if not min_timestamp else min_timestamp
+        max_timestamp = context.end_date if not max_timestamp else max_timestamp
         min_order_timestamp = context.start_time_stamp if not min_order_timestamp else min_order_timestamp
         max_order_timestamp = context.end_time_stamp if not max_order_timestamp else max_order_timestamp
 
